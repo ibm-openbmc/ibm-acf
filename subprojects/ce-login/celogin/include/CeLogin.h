@@ -163,6 +163,10 @@ CeLoginRc getServiceAuthorityV1(
     const uint64_t serialNumberLengthParm, ServiceAuthority& authorityParm,
     uint64_t& expirationTimeParm);
 
+
+
 } // namespace CeLogin
+
+
 
 #endif
