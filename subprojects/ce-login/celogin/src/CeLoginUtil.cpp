@@ -157,6 +157,11 @@ CeLogin::CeLoginRc CeLogin::decodeAndVerifyAcf(
 
     if (CeLoginRc::Success == sRc)
     {
+        // Validate the NID stored within the ASN.1 structure. This indicates
+        // both the Digest algorithm and the Signature algorithm. It is
+        // different from the NID provided to OpenSSL when performing the
+        // sign/verify routine.
+
         // Returns pointer to a static definition of the object identifier.
         // Returns NULL on failure.
         sExpectedObject = OBJ_nid2obj(CeLogin_Acf_NID);
@@ -227,9 +232,12 @@ CeLogin::CeLoginRc CeLogin::decodeAndVerifyAcf(
     // Verify signature over SourceFileData
     if (CeLoginRc::Success == sRc)
     {
+        // Use the Digest NID without the signature algorithm (i.e. Sha512 vs
+        // Sha512WithRSAEncryption).
+
         // returns 1 on successful verification
         int sRsaResult = RSA_verify(
-            CeLogin_Acf_NID, sHashReceivedJson, sizeof(sHashReceivedJson),
+            CeLogin_Digest_NID, sHashReceivedJson, sizeof(sHashReceivedJson),
             decodedAsnParm->signature->data, decodedAsnParm->signature->length,
             sPublicKey);
         if (1 != sRsaResult)

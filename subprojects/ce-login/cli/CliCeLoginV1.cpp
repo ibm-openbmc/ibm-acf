@@ -244,9 +244,10 @@ CeLogin::CeLoginRc
         {
             unsigned int sJsonSignatureSize = sJsonSignature.size();
             sJsonSignature = std::vector<uint8_t>(RSA_size(sPrivateKey));
-            int sResult = RSA_sign(CeLogin::CeLogin_Acf_NID, sJsonDigest.data(),
-                                   sJsonDigest.size(), sJsonSignature.data(),
-                                   &sJsonSignatureSize, sPrivateKey);
+            int sResult =
+                RSA_sign(CeLogin::CeLogin_Digest_NID, sJsonDigest.data(),
+                         sJsonDigest.size(), sJsonSignature.data(),
+                         &sJsonSignatureSize, sPrivateKey);
             if (1 != sResult)
             {
                 sRc = CeLoginRc::Failure;
@@ -357,6 +358,17 @@ CeLogin::CeLoginRc CeLogin::decodeAndVerifyCeLoginHsfV1(
 
     if (CeLoginRc::Success == sRc)
     {
+        for (int i = 0; i < sDecodedAsn->sourceFileData->length; i++)
+        {
+            decodedHsfParm.mSignedPayload.push_back(
+                sDecodedAsn->sourceFileData->data[i]);
+        }
+
+        for (int i = 0; i < sDecodedAsn->signature->length; i++)
+        {
+            decodedHsfParm.mSignature.push_back(
+                sDecodedAsn->signature->data[i]);
+        }
         json_object* sJson =
             json_tokener_parse((const char*)sDecodedAsn->sourceFileData->data);
 

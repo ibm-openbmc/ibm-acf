@@ -61,6 +61,8 @@ struct CeLoginDecryptedHsfArgsV1
 {
     std::string mProcessingType;
     std::string mSourceFileName;
+    std::vector<uint8_t> mSignedPayload;
+    std::vector<uint8_t> mSignature;
     std::vector<DecodedMachine> mMachines;
     std::string mExpirationDate;
     std::string mRequestId;
