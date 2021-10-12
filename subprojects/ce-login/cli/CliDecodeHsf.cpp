@@ -138,7 +138,8 @@ bool decodeValidateArgs(const DecodeArguments& args)
     return sIsValidArgs;
 }
 
-void printDecodedHsf(const CeLogin::CeLoginDecryptedHsfArgsV1& hsfParm)
+void printDecodedHsf(const CeLogin::CeLoginDecryptedHsfArgsV1& hsfParm,
+                     const bool verboseParm)
 {
     cout << "ProcessingType:\t" << hsfParm.mProcessingType << endl;
     cout << "SourceFileName:\t" << hsfParm.mSourceFileName << endl;
@@ -161,6 +162,16 @@ void printDecodedHsf(const CeLogin::CeLoginDecryptedHsfArgsV1& hsfParm)
     cout << "\texpiration:\t" << hsfParm.mExpirationDate << endl;
     cout << "\trequestId:\t" << hsfParm.mRequestId << endl;
     cout << "}" << endl;
+    if (verboseParm)
+    {
+        cout << endl;
+        cout << "Signature:" << endl;
+        cout << cli::getHexStringFromBinary(hsfParm.mSignature) << endl;
+        cout << endl;
+        cout << "Raw Signed Payload:" << endl;
+        cout << cli::getHexStringFromBinary(hsfParm.mSignedPayload) << endl;
+        cout << endl;
+    }
 }
 
 CeLogin::CeLoginRc cli::decodeHsf(int argc, char** argv)
@@ -199,8 +210,11 @@ CeLogin::CeLoginRc cli::decodeHsf(int argc, char** argv)
                                                        sDecodedHsf);
             if (CeLoginRc::Success == sRc)
             {
-                printDecodedHsf(sDecodedHsf);
-                cout << "Signature verified" << endl;
+                printDecodedHsf(sDecodedHsf, sArgs.mVerbose);
+                if (!sPublicKey.empty())
+                    cout << "Signature verified" << endl;
+                else
+                    cout << "Signature validation skipped" << endl;
             }
             else if (CeLoginRc::SignatureNotValid == sRc)
             {

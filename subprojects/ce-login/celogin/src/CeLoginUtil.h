@@ -22,8 +22,11 @@ struct CeLogin_Date
 
 enum
 {
-    CeLogin_Acf_NID = NID_sha512WithRSAEncryption,
+    // The ACF, Digest, and DigestLength should use the same algorithms
+    CeLogin_Acf_NID = NID_sha512WithRSAEncryption, // Used in ASN.1
+    CeLogin_Digest_NID = NID_sha512, // Used for OpenSSL RSA sign/verify routine
     CeLogin_DigestLength = SHA512_DIGEST_LENGTH,
+
     CeLogin_MaxHashedAuthCodeLength = 128,
     CeLogin_MaxHashedAuthCodeSaltLength = 128,
 
