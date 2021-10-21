@@ -61,12 +61,12 @@ struct option create_long_options[NOptOptions + 1] = {
     {0, 0, 0, 0}};
 
 string create_options_description[NOptOptions] = {
-    "<processor gen>,<authority>,<serial number>",
+    "<processor gen (P10)>,<authority (dev,ce)>,<7-char serial number|UNSET>",
     "Password",
-    "ExpirationDate",
+    "ExpirationDate - YYYY-MM-DD",
     "PrivateKeyFile",
     "OutputFile",
-    "<sha512|prod> - Password Hash Algorithm",
+    "<sha512|prod> - Password Hash Algorithm : default prod",
     "Help",
     "Verbose"};
 

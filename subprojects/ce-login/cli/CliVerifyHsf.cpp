@@ -52,7 +52,7 @@ struct option verify_long_options[NOptOptions + 1] = {
 
 std::string verify_options_description[NOptOptions] = {
     "HsfFile", "PublicKeyFile", "Password",
-    "SerialNumber"
+    "<7-char serial number|UNSET>",
     "Help",
     "Verbose"};
 
