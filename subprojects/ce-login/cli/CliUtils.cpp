@@ -33,7 +33,7 @@ bool cli::readBinaryFile(const std::string fileNameParm,
         }
         else
         {
-            std::cout << "Failed to open file " << std::endl;
+            std::cout << "Failed to open file : " << fileNameParm << std::endl;
         }
     }
     else

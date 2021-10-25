@@ -1,0 +1,81 @@
+#!/bin/bash
+# Script to generate a development signed ACF and upload to the BMC provided
+
+
+MYPATH=$(dirname $(readlink -f $(which $0)));
+BMC=$1
+ARCH=$2
+PASSWD=$3
+ADMINID=admin
+ACF=/tmp/${USER}_$$.acf
+
+###HACK : need to use root account for now as unable to fetch serial with admin
+ADMINID=root
+
+if [ "X${BMC}" = "X" ] || [ "X${ARCH}" = "X" ] ; then
+    echo "uploadDevAcf <BMC IP> <ARCH (P10)> [<BMC PASSWD>]"
+    exit 1
+fi
+
+if [ "X${PASSWD}" = "X" ]; then
+    PASSWD="0penBmc"
+fi
+
+if [ $ARCH = "P10" ]; then
+    SIGNINGKEY=$MYPATH/p10-celogin-lab-pkey.der
+else
+    echo "**** ERROR : Unsupported processor architecture : $ARCH"
+fi
+
+echo "Generating and installing a development signed ACF to : $BMC"
+
+## Fetch our credential token
+TOKEN=`curl -k -H "Content-Type: application/json" -X POST https://${BMC}/login -d '{"username" :  "'${ADMINID}'", "password" :  "'${PASSWD}'"}' 2>/dev/null | grep token | awk '{print $2;}' | tr -d '"'`
+if [ "X${TOKEN}" = "X" ]; then
+    echo "**** ERROR : Unable to login to BMC with admin credentials"
+    exit 1
+fi
+
+## Fetch the system serial number
+SERIAL=`curl  -k -H "X-Auth-Token: $TOKEN" -X GET  https://${BMC}/redfish/v1/Systems/system 2>/dev/null |grep "SerialNumber" | awk -F\" '{print $4;}'`
+if [ "X${SERIAL}" = "X" ]; then
+    echo "**** ERROR : Unable to retrieve system serial from BMC"
+    curl  -k -H "X-Auth-Token: $TOKEN" -X GET  https://${BMC}/redfish/v1/Systems/system 2>/dev/null |grep "SerialNumber" | awk -F\" '{print $4;}'
+    exit 1
+fi
+echo "Found system serial : $SERIAL"
+
+## Generate ACF
+echo "Generating ACF to ${ACF} ..."
+# Look for CLI in same dir as this script
+CESCRIPT=$MYPATH/celogin_cli
+# Otherwise look in build directory
+if [ -e $MYPATH/build/celogin_cli ]; then
+    CESCRIPT=$MYPATH/build/celogin_cli
+fi
+
+$CESCRIPT create -m ${ARCH},dev,$SERIAL -p ${PASSWD} -e 2040-01-01 -k ${SIGNINGKEY} -o ${ACF}
+if [ $? != 0 ]; then
+    echo "**** ERROR : Unable to create the ACF"
+    exit 1
+fi
+
+## Upload the ACF
+service_acf_base64=$(base64 -w 0 -i ${ACF})
+OUTPUT=`curl  -k -H "X-Auth-Token: $TOKEN" -X PATCH -d '{"Oem":{"IBM":{"ACF":{"ACFFile":"'${service_acf_base64}'"}}}}' https://${BMC}/redfish/v1/AccountService/Accounts/service 2>/dev/null`
+
+if [[ $OUTPUT = *'"ACFInstalled": true'* ]]; then
+    echo "ACF successfully installed to ${BMC}"
+else
+    echo "**** ERROR : Failures found while attempting to install the ACF to ${BMC}"
+    echo
+    echo ${OUTPUT}
+    rm -f ${ACF}
+    exit 1
+fi
+
+
+## Cleanup
+rm -f ${ACF}
+exit 0
+

@@ -292,6 +292,10 @@ CeLogin::CeLoginRc cli::createHsf(int argc, char** argv)
         {
             sCreateHsfArgs.mPrivateKey = sKey;
         }
+        else
+        {
+            return sRc;
+        }
 
         if (sArgs.mPasswordHashAlgorithm.empty())
         {
@@ -316,9 +320,9 @@ CeLogin::CeLoginRc cli::createHsf(int argc, char** argv)
 
         vector<uint8_t> sAcfBinary;
         sRc = CeLogin::createCeLoginAcfV1(sCreateHsfArgs, sAcfBinary);
-        cout << "RC: " << hex << (int)sRc << endl;
+        //cout << "RC: " << hex << (int)sRc << endl;
 
-        cout << sAcfBinary.size() << endl;
+        //cout << sAcfBinary.size() << endl;
 
         if (!writeBinaryFile(sArgs.mOutputFile, sAcfBinary.data(),
                              sAcfBinary.size()))
