@@ -3,14 +3,11 @@
 
 
 MYPATH=$(dirname $(readlink -f $(which $0)));
-BMC=$1
-ARCH=$2
-PASSWD=$3
+BMC="$1"
+ARCH="$2"
+PASSWD="$3"
 ADMINID=admin
 ACF=/tmp/${USER}_$$.acf
-
-###HACK : need to use root account for now as unable to fetch serial with admin
-ADMINID=root
 
 if [ "X${BMC}" = "X" ] || [ "X${ARCH}" = "X" ] ; then
     echo "uploadDevAcf <BMC IP> <ARCH (P10)> [<BMC PASSWD>]"
@@ -54,7 +51,7 @@ if [ -e $MYPATH/build/celogin_cli ]; then
     CESCRIPT=$MYPATH/build/celogin_cli
 fi
 
-$CESCRIPT create -m ${ARCH},dev,$SERIAL -p ${PASSWD} -e 2040-01-01 -k ${SIGNINGKEY} -o ${ACF}
+$CESCRIPT create -m "${ARCH},dev,${SERIAL}" -p "${PASSWD}" -e 2040-01-01 -k ${SIGNINGKEY} -o ${ACF}
 if [ $? != 0 ]; then
     echo "**** ERROR : Unable to create the ACF"
     exit 1
@@ -74,6 +71,8 @@ else
     exit 1
 fi
 
+## Logout
+curl -k -H "X-Auth-Token: $TOKEN" -X POST https://${BMC}/logout >/dev/null 2>&1
 
 ## Cleanup
 rm -f ${ACF}
