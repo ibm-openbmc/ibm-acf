@@ -4,13 +4,12 @@
 
 MYPATH=$(dirname $(readlink -f $(which $0)));
 BMC="$1"
-ARCH="$2"
-PASSWD="$3"
+PASSWD="$2"
 ADMINID=admin
 ACF=/tmp/${USER}_$$.acf
 
-if [ "X${BMC}" = "X" ] || [ "X${ARCH}" = "X" ] ; then
-    echo "uploadDevAcf <BMC IP> <ARCH (P10)> [<BMC PASSWD>]"
+if [ "X${BMC}" = "X" ] ; then
+    echo "uploadDevAcf <BMC IP> [<BMC PASSWD>]"
     exit 1
 fi
 
@@ -18,6 +17,9 @@ if [ "X${PASSWD}" = "X" ]; then
     PASSWD="0penBmc"
 fi
 
+ARCH="P10"
+# In the future there is a redfish 'Processor Family' attribute that can be used
+#  to determine the correct value, hardcode for now
 if [ $ARCH = "P10" ]; then
     SIGNINGKEY=$MYPATH/p10-celogin-lab-pkey.der
 else
@@ -37,7 +39,7 @@ fi
 SERIAL=`curl  -k -H "X-Auth-Token: $TOKEN" -X GET  https://${BMC}/redfish/v1/Systems/system 2>/dev/null |grep "SerialNumber" | awk -F\" '{print $4;}'`
 if [ "X${SERIAL}" = "X" ]; then
     echo "**** ERROR : Unable to retrieve system serial from BMC"
-    curl  -k -H "X-Auth-Token: $TOKEN" -X GET  https://${BMC}/redfish/v1/Systems/system 2>/dev/null |grep "SerialNumber" | awk -F\" '{print $4;}'
+    curl  -k -H "X-Auth-Token: $TOKEN" -X GET  https://${BMC}/redfish/v1/Systems/system 2>/dev/null
     exit 1
 fi
 echo "Found system serial : $SERIAL"
