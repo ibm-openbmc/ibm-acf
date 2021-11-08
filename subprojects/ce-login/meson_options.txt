@@ -1,2 +1,3 @@
 option('lib', type : 'boolean', value : true, description : 'Build the static object by default')
 option('bin', type : 'boolean', value : false, description : 'Do not build the binary by default')
+option('static-bin', type : 'boolean', value : false, description : 'Do not build the static binary by default')

@@ -73,6 +73,19 @@ if get_option('lib')
   install_headers('celogin/include/CeLogin.h', 'celogin/src/CeLoginAsnV1.h', 'celogin/src/CeLoginUtil.h', 'celogin/src/JsmnUtils.h', 'celogin/src/CeLoginJson.h')
 endif
 
+if get_option('static-bin')
+  #If openssl/json-c static libraries are not installed you must build them
+  #https://github.com/openssl/openssl
+  #https://github.com/json-c/json-c
+  #Once built you can configure the location of the pkg-config files by setting PKG_CONFIG_PATH env variable
+  #Check README.md for static compilation examples
+  libjson_c = dependency('json-c', required : true, static : true)
+  libcrypto = dependency('libcrypto', required : false, static : true)
+  libssl = dependency('libssl', required : false, static : true)
+  cli_deps = [ jsmn, libjson_c, libcrypto, libssl]
+  exe = executable('celogin_cli', cpp_args : args, link_args : ['-static'] ,sources : all_srcs, dependencies : cli_deps, include_directories : [inc_dir]  )
+endif
+
 #Ce-login utility for generating access control files
 if get_option('bin')
 
