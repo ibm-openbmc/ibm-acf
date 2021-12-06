@@ -38,9 +38,17 @@ fi
 ## Fetch the system serial number
 SERIAL=`curl  -k -H "X-Auth-Token: $TOKEN" -X GET  https://${BMC}/redfish/v1/Systems/system 2>/dev/null |grep "SerialNumber" | awk -F\" '{print $4;}'`
 if [ "X${SERIAL}" = "X" ]; then
-    echo "**** ERROR : Unable to retrieve system serial from BMC"
-    curl  -k -H "X-Auth-Token: $TOKEN" -X GET  https://${BMC}/redfish/v1/Systems/system 2>/dev/null
-    exit 1
+    # In some cases the BMC can't read the serial so we will default to UNSET
+    #   "Message": "The request failed due to an internal service error.  The service is still operational.",
+    curl  -k -H "X-Auth-Token: $TOKEN" -X GET  https://${BMC}/redfish/v1/Systems/system 2>/dev/null |grep "The request failed" > /dev/null
+    if [ $? == 0 ]; then
+        echo "**** ERROR : Unable to retrieve system serial from BMC, attempting UNSET"
+        SERIAL="UNSET"
+    else
+        echo "**** ERROR : Unable to retrieve system serial from BMC"
+        curl  -k -H "X-Auth-Token: $TOKEN" -X GET  https://${BMC}/redfish/v1/Systems/system 2>/dev/null
+        exit 1
+    fi
 fi
 echo "Found system serial : $SERIAL"
 
