@@ -4,9 +4,9 @@
 
 #include <CeLogin.h>
 #include <getopt.h>
+#include <inttypes.h>
 #include <string.h>
 
-#include <inttypes.h>
 #include <ctime>
 #include <fstream>
 #include <iostream>
@@ -15,6 +15,7 @@
 
 using namespace CeLogin;
 
+// clang-format off
 struct VerifyArguments
 {
     std::string mHsfFileName;
@@ -51,10 +52,13 @@ struct option verify_long_options[NOptOptions + 1] = {
     {0, 0, 0, 0}};
 
 std::string verify_options_description[NOptOptions] = {
-    "HsfFile", "PublicKeyFile", "Password",
+    "HsfFile",
+    "PublicKeyFile",
+    "Password",
     "<7-char serial number|UNSET>",
     "Help",
     "Verbose"};
+// clang-format on
 
 void verifyParseArgs(int argc, char** argv, struct VerifyArguments& args)
 {
@@ -192,7 +196,7 @@ CeLogin::CeLoginRc cli::verifyHsf(int argc, char** argv)
             {
                 std::time_t sTime = std::time(NULL);
                 CeLogin::ServiceAuthority sAuth = CeLogin::ServiceAuth_None;
-                uint64_t sExpiration;
+                uint64_t sExpiration = 0;
 
                 sRc = CeLogin::getServiceAuthorityV1(
                     sHsf.data(), sHsf.size(), sArgs.mPassword.data(),
