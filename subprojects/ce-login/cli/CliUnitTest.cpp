@@ -577,6 +577,7 @@ static UnitTestResult ut_validate_unset_serial();
 static UnitTestResult ut_invalid_parms();
 static UnitTestResult ut_create_password_hash_variations();
 static UnitTestResult ut_expiration_time_validation();
+static UnitTestResult ut_max_expiration_time_validation();
 static UnitTestResult ut_pki_mismatch();
 static UnitTestResult ut_corrupted_payload();
 static UnitTestResult ut_incorrect_password();
@@ -591,6 +592,7 @@ void cli::unit_test_main(int argc, char** argv)
     sResults += ut_validate_unset_serial();
     sResults += ut_create_password_hash_variations();
     sResults += ut_expiration_time_validation();
+    sResults += ut_max_expiration_time_validation();
     sResults += ut_pki_mismatch();
     sResults += ut_corrupted_payload();
     sResults += ut_incorrect_password();
@@ -951,6 +953,7 @@ UnitTestResult ut_expiration_time_validation()
         ASN1_TIME* sAsn1DateFromString = ASN1_TIME_new();
         ASN1_TIME* sAsn1DateFromTimestamp = ASN1_TIME_new();
         DO_TEST(sResult, sAsn1DateFromString, sAsn1DateFromString);
+        DO_TEST(sResult, sAsn1DateFromTimestamp, sAsn1DateFromTimestamp);
 
         if (sAsn1DateFromString && sAsn1DateFromTimestamp)
         {
@@ -1035,6 +1038,150 @@ UnitTestResult ut_expiration_time_validation()
     {
         // Current time is Expiration + 1
         const uint64_t sCurrentTime = sExpirationTimestamp + 1;
+
+        uint64_t sExpiration = 0;
+        ServiceAuthority sAuth = ServiceAuth_None;
+
+        sRc = cplusplus_getServiceAuthorityV1(
+            sAcf, sHsfArgs.mPassword, sCurrentTime, key1_pub_der,
+            key1_pub_der_len, sHsfArgs.mMachines.front().mSerialNumber, sAuth,
+            sExpiration);
+        DO_TEST(sResult, CeLoginRc::AcfExpired == sRc, sRc);
+        DO_TEST(sResult, 0 == sExpiration, sExpiration);
+        DO_TEST(sResult, sAuth == ServiceAuth_None, sAuth);
+    }
+
+    return sResult;
+}
+
+UnitTestResult ut_max_expiration_time_validation()
+{
+    UnitTestResult sResult;
+    CeLoginRc sRc = CeLoginRc::Success;
+
+    const uint64_t sMaxExpirationTimestamp = 253402214400;
+    const std::string sMaxExpirationString = "9999-12-31";
+
+    const uint64_t sAlmostMaxExpirationTimestamp = 253402128000;
+    const std::string sAlmostMaxExpirationString = "9999-12-30";
+
+    // Validate that the timestamp and string are the same time
+    {
+        ASN1_TIME* sAsn1DateFromString = ASN1_TIME_new();
+        ASN1_TIME* sAsn1DateFromTimestamp = ASN1_TIME_new();
+        DO_TEST(sResult, sAsn1DateFromString, sAsn1DateFromString);
+        DO_TEST(sResult, sAsn1DateFromTimestamp, sAsn1DateFromTimestamp);
+
+        if (sAsn1DateFromString && sAsn1DateFromTimestamp)
+        {
+            CeLogin_Date sDate;
+            sRc = getDateFromString(sMaxExpirationString.data(),
+                                    sMaxExpirationString.length(), sDate);
+            DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
+
+            sRc = getAsn1Time(sDate, sAsn1DateFromString);
+            DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
+
+            ASN1_TIME* sOsslResult =
+                ASN1_TIME_set(sAsn1DateFromTimestamp, sMaxExpirationTimestamp);
+            DO_TEST(sResult, sOsslResult == sAsn1DateFromTimestamp,
+                    sOsslResult);
+
+            // returns -1 if a is before b, 0 if a equals b, or 1 if a is
+            // after b. -2 is returned on error.
+            const int sCompareResult =
+                ASN1_TIME_compare(sAsn1DateFromString, sAsn1DateFromTimestamp);
+            DO_TEST(sResult, 0 == sCompareResult, sCompareResult);
+        }
+
+        if (sAsn1DateFromString && sAsn1DateFromTimestamp)
+        {
+            CeLogin_Date sDate;
+            sRc = getDateFromString(sAlmostMaxExpirationString.data(),
+                                    sAlmostMaxExpirationString.length(), sDate);
+            DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
+
+            sRc = getAsn1Time(sDate, sAsn1DateFromString);
+            DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
+
+            ASN1_TIME* sOsslResult = ASN1_TIME_set(
+                sAsn1DateFromTimestamp, sAlmostMaxExpirationTimestamp);
+            DO_TEST(sResult, sOsslResult == sAsn1DateFromTimestamp,
+                    sOsslResult);
+
+            // returns -1 if a is before b, 0 if a equals b, or 1 if a is
+            // after b. -2 is returned on error.
+            const int sCompareResult =
+                ASN1_TIME_compare(sAsn1DateFromString, sAsn1DateFromTimestamp);
+            DO_TEST(sResult, 0 == sCompareResult, sCompareResult);
+        }
+        if (sAsn1DateFromString)
+            ASN1_TIME_free(sAsn1DateFromString);
+        if (sAsn1DateFromTimestamp)
+            ASN1_TIME_free(sAsn1DateFromTimestamp);
+    }
+
+    CeLoginCreateHsfArgsV1 sHsfArgs = GetDefaultHsfArgs();
+    sHsfArgs.mExpirationDate = sAlmostMaxExpirationString;
+
+    std::vector<uint8_t> sAcf;
+    sRc = createCeLoginAcfV1(sHsfArgs, sAcf);
+    DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
+
+    {
+        // Current time is epoch
+        const uint64_t sCurrentTime = 0;
+
+        uint64_t sExpiration = 0;
+        ServiceAuthority sAuth = ServiceAuth_None;
+
+        sRc = cplusplus_getServiceAuthorityV1(
+            sAcf, sHsfArgs.mPassword, sCurrentTime, key1_pub_der,
+            key1_pub_der_len, sHsfArgs.mMachines.front().mSerialNumber, sAuth,
+            sExpiration);
+        DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
+        DO_TEST(sResult, sAlmostMaxExpirationTimestamp == sExpiration,
+                sExpiration);
+        DO_TEST(sResult, sAuth == ServiceAuth_CE, sAuth);
+    }
+
+    {
+        // Current time is Expiration - 1
+        const uint64_t sCurrentTime = sAlmostMaxExpirationTimestamp - 1;
+
+        uint64_t sExpiration = 0;
+        ServiceAuthority sAuth = ServiceAuth_None;
+
+        sRc = cplusplus_getServiceAuthorityV1(
+            sAcf, sHsfArgs.mPassword, sCurrentTime, key1_pub_der,
+            key1_pub_der_len, sHsfArgs.mMachines.front().mSerialNumber, sAuth,
+            sExpiration);
+        DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
+        DO_TEST(sResult, sAlmostMaxExpirationTimestamp == sExpiration,
+                sExpiration);
+        DO_TEST(sResult, sAuth == ServiceAuth_CE, sAuth);
+    }
+
+    {
+        // Current time is Expiration
+        const uint64_t sCurrentTime = sAlmostMaxExpirationTimestamp;
+
+        uint64_t sExpiration = 0;
+        ServiceAuthority sAuth = ServiceAuth_None;
+
+        sRc = cplusplus_getServiceAuthorityV1(
+            sAcf, sHsfArgs.mPassword, sCurrentTime, key1_pub_der,
+            key1_pub_der_len, sHsfArgs.mMachines.front().mSerialNumber, sAuth,
+            sExpiration);
+        DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
+        DO_TEST(sResult, sAlmostMaxExpirationTimestamp == sExpiration,
+                sExpiration);
+        DO_TEST(sResult, sAuth == ServiceAuth_CE, sAuth);
+    }
+
+    {
+        // Current time is Max Expiration Time
+        const uint64_t sCurrentTime = sMaxExpirationTimestamp;
 
         uint64_t sExpiration = 0;
         ServiceAuthority sAuth = ServiceAuth_None;
