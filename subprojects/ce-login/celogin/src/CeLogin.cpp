@@ -213,3 +213,101 @@ CeLogin::CeLoginRc CeLogin::getServiceAuthorityV1(
 
     return sRc;
 }
+
+CeLogin::CeLoginRc CeLogin::checkServiceAuthorityAcfIntegrityV1(
+    const uint8_t* accessControlFileParm,
+    const uint64_t accessControlFileLengthParm,
+    const uint64_t timeSinceUnixEpocInSecondsParm, const uint8_t* publicKeyParm,
+    const uint64_t publicKeyLengthParm, const char* serialNumberParm,
+    const uint64_t serialNumberLengthParm, ServiceAuthority& authorityParm,
+    uint64_t& expirationTimeParm)
+{
+    CeLoginRc sRc = CeLoginRc::Success;
+    authorityParm = CeLogin::ServiceAuth_None;
+
+    CELoginSequenceV1* sDecodedAsn = NULL;
+    CeLoginJsonData* sJsonData = NULL;
+
+    if (!accessControlFileParm)
+    {
+        sRc = CeLoginRc::GetSevAuth_InvalidAcfPtr;
+    }
+    else if (0 == accessControlFileLengthParm)
+    {
+        sRc = CeLoginRc::GetSevAuth_InvalidAcfLength;
+    }
+    else if (!publicKeyParm)
+    {
+        sRc = CeLoginRc::GetSevAuth_InvalidPublicKeyPtr;
+    }
+    else if (0 == publicKeyLengthParm)
+    {
+        sRc = CeLoginRc::GetSevAuth_InvalidPublicKeyLength;
+    }
+    else if (!serialNumberParm)
+    {
+        sRc = CeLoginRc::GetSevAuth_InvalidSerialNumberPtr;
+    }
+    else if (0 == serialNumberLengthParm)
+    {
+        sRc = CeLoginRc::GetSevAuth_InvalidSerialNumberLength;
+    }
+
+    // Allocate on heap to avoid blowing the stack
+    if (CeLoginRc::Success == sRc)
+    {
+        sJsonData = (CeLoginJsonData*)OPENSSL_malloc(sizeof(CeLoginJsonData));
+        if (sJsonData)
+        {
+            memset(sJsonData, 0x00, sizeof(CeLoginJsonData));
+        }
+        else
+        {
+            sRc = CeLoginRc::JsonDataAllocationFailure;
+        }
+    }
+
+    // Stack copy to store the parsed expiration time into. Only pass back
+    // the value if the authority has validated as CE or Dev.
+    uint64_t sExpirationTime = 0;
+
+    if (CeLoginRc::Success == sRc)
+    {
+        // Returns a heap allocation of the decoded ANS1 structure.
+        //  - Verify supported OID/signature algorithm
+        //  - Verify expected ProcessingType
+        //  - Verify signature over SourceFileData
+        sRc = decodeAndVerifyAcf(accessControlFileParm,
+                                 accessControlFileLengthParm, publicKeyParm,
+                                 publicKeyLengthParm, sDecodedAsn);
+    }
+
+    // Verify system serial number is in machine list (and get the
+    // authorization)
+    if (CeLoginRc::Success == sRc)
+    {
+        sRc = decodeJson((const char*)sDecodedAsn->sourceFileData->data,
+                         sDecodedAsn->sourceFileData->length, serialNumberParm,
+                         serialNumberLengthParm, *sJsonData);
+    }
+
+    // Verify that the ACF has not expired (using UTC)
+    if (CeLoginRc::Success == sRc)
+    {
+        sRc = isTimeExpired(sJsonData, sExpirationTime,
+                            timeSinceUnixEpocInSecondsParm);
+    }
+
+    if (CeLoginRc::Success == sRc)
+    {
+        authorityParm = sJsonData->mRequestedAuthority;
+        expirationTimeParm = sExpirationTime;
+    }
+
+    if (sDecodedAsn)
+        CELoginSequenceV1_free(sDecodedAsn);
+    if (sJsonData)
+        OPENSSL_free(sJsonData);
+
+    return sRc;
+}

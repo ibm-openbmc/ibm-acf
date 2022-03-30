@@ -131,7 +131,6 @@ struct CeLoginRc
         GetSevAuth_InvalidSerialNumberPtr = 0xD6,
         GetSevAuth_InvalidSerialNumberLength = 0xD7,
 
-
         // Must fit in 1-byte
     };
 
@@ -163,10 +162,14 @@ CeLoginRc getServiceAuthorityV1(
     const uint64_t serialNumberLengthParm, ServiceAuthority& authorityParm,
     uint64_t& expirationTimeParm);
 
-
+CeLoginRc checkServiceAuthorityAcfIntegrityV1(
+    const uint8_t* accessControlFileParm,
+    const uint64_t accessControlFileLengthParm,
+    const uint64_t timeSinceUnixEpocInSecondsParm, const uint8_t* publicKeyParm,
+    const uint64_t publicKeyLengthParm, const char* serialNumberParm,
+    const uint64_t serialNumberLengthParm, ServiceAuthority& authorityParm,
+    uint64_t& expirationTimeParm);
 
 } // namespace CeLogin
-
-
 
 #endif

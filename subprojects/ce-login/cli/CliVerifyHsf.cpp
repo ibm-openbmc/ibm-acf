@@ -164,8 +164,9 @@ bool verifyValidateArgs(const VerifyArguments& args)
     }
     if (args.mPassword.empty())
     {
-        sIsValidArgs = false;
-        std::cout << "Error: Missing Password" << std::endl;
+        std::cout
+            << "Warning: Missing Password. Performing integrity/upload check only"
+            << std::endl;
     }
     if (args.mSerialNumber.empty())
     {
@@ -198,15 +199,35 @@ CeLogin::CeLoginRc cli::verifyHsf(int argc, char** argv)
                 CeLogin::ServiceAuthority sAuth = CeLogin::ServiceAuth_None;
                 uint64_t sExpiration = 0;
 
-                sRc = CeLogin::getServiceAuthorityV1(
-                    sHsf.data(), sHsf.size(), sArgs.mPassword.data(),
-                    sArgs.mPassword.size(), sTime, sPublicKey.data(),
-                    sPublicKey.size(), sArgs.mSerialNumber.data(),
-                    sArgs.mSerialNumber.size(), sAuth, sExpiration);
+                if (!sArgs.mPassword.empty())
+                {
+                    // Perform full authorization validation
+                    sRc = CeLogin::getServiceAuthorityV1(
+                        sHsf.data(), sHsf.size(), sArgs.mPassword.data(),
+                        sArgs.mPassword.size(), sTime, sPublicKey.data(),
+                        sPublicKey.size(), sArgs.mSerialNumber.data(),
+                        sArgs.mSerialNumber.size(), sAuth, sExpiration);
+                }
+                else
+                {
+                    // Verify ACF integrity, skip password validation
+                    sRc = CeLogin::checkServiceAuthorityAcfIntegrityV1(
+                        sHsf.data(), sHsf.size(), sTime, sPublicKey.data(),
+                        sPublicKey.size(), sArgs.mSerialNumber.data(),
+                        sArgs.mSerialNumber.size(), sAuth, sExpiration);
+                }
 
                 if (CeLoginRc::Success == sRc)
                 {
-                    std::cout << "ACF/password is valid" << std::endl;
+                    if (sArgs.mPassword.empty())
+                    {
+                        std::cout << "ACF is valid, skipped password check"
+                                  << std::endl;
+                    }
+                    else
+                    {
+                        std::cout << "ACF/password is valid" << std::endl;
+                    }
                 }
                 else if (CeLoginRc::SignatureNotValid == sRc)
                 {
