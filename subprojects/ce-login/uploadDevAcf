@@ -58,7 +58,11 @@ if [ "X${SERIAL}" = "X" ]; then
         curl  -k -H "X-Auth-Token: $TOKEN" -X GET  https://${BMC}/redfish/v1/Systems/system 2>/dev/null
         exit 1
     fi
+elif [ "${SERIAL}" = "       " ]; then
+    echo "**** NOTE: Saw blank serial, using UNSET serial keyword"
+    SERIAL="UNSET"
 fi
+
 echo "Found system serial : $SERIAL"
 
 ## Generate ACF
