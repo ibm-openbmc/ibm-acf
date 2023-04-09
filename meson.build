@@ -72,5 +72,10 @@ else
   libcelogin_dep = sp.get_variable('lib_ce_login_dep')
   deps = [sdbusplus, libcrypto, libssl, libcelogin_dep, pam]
 
-  library('pam_ibmacf', 'src/pam_ibmacf.cpp', pic : true, name_prefix : '', dependencies : deps, install : true, install_dir : '/lib/security')
+  # sub directores may add source files and include directoies
+  sources = []
+  incdir = []
+  subdir('src')
+
+  library('pam_ibmacf', sources, include_directories : incdir, pic : true, name_prefix : '', dependencies : deps, install : true, install_dir : '/lib/security')
 endif
