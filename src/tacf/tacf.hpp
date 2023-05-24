@@ -507,13 +507,105 @@ class Tacf : TargetedAcf
     }
 
     /** @brief A helper function to convert timestamp to date */
-    std::string getDate(const uint64_t timestamp)
+    std::string getDate(const uint64_t seconds)
     {
-        // Get expiration date
-        struct tm* t = gmtime(reinterpret_cast<const time_t*>(&timestamp));
-        std::string buffer(100, ' ');
-        size_t written = std::strftime(buffer.data(), buffer.size(), "%F", t);
-        buffer.resize(written);
+        uint year  = 0;
+        uint month = 0;
+        uint date  = 0;
+
+        // unix timestamp is max 10 digits
+        if (seconds <= 9999999999)
+        {
+            // calculate years since
+            uint days = seconds / (24 * 60 * 60);
+            year      = 1970;
+
+            while (days >= 365)
+            {
+                // leap year is 366 days
+                if (year % 400 == 0 || (year % 4 == 0 && year % 100 != 0))
+                {
+                    if (days < 366)
+                    {
+                        break;
+                    }
+                    days -= 366;
+                }
+                // std year is 365 days
+                else
+                {
+                    days -= 365;
+                }
+                year += 1;
+            }
+
+            // calculate date
+            bool leap = false;
+
+            if (year % 400 == 0 || (year % 4 == 0 && year % 100 != 0))
+            {
+                leap = true;
+            }
+
+            days += 1; // date = days since + 1
+
+            int daysOfMonth[] = {31, 28, 31, 30, 31, 30,
+                                 31, 31, 30, 31, 30, 31};
+            uint index        = 0;
+            month             = 0;
+
+            while (index <= 11)
+            {
+                // total days in month
+                uint daysInMonth = daysOfMonth[index];
+
+                // february in leap year adds a day
+                if (leap && (1 == index))
+                {
+                    daysInMonth += 1;
+                }
+
+                // middle of month
+                if (days < daysInMonth)
+                {
+                    break;
+                }
+
+                // beginning of month
+                month += 1;
+                // daysRemain -= daysInMonth;
+                days -= daysInMonth;
+                index += 1;
+            }
+
+            // date = daysRemain;
+            date = days;
+
+            // if (daysRemain > 0)
+            if (days > 0)
+            {
+                month += 1;
+            }
+            else
+            {
+                date = daysOfMonth[month - 1]; // month != 0
+
+                // add extra day for leap year
+                if (leap && (2 == month))
+                {
+                    date += 1;
+                }
+                else
+                {
+                    date = daysOfMonth[month - 1];
+                }
+            }
+        }
+
+        // convert to expected format
+        std::string buffer(sizeof("yyyy-mm-dd\0"), ' ');
+        sprintf(buffer.data(), "%04d-%02d-%02d", year, month, date);
+        buffer.resize(sizeof("yyyy-mm-dd"));
 
         return buffer;
     }
