@@ -566,40 +566,19 @@ class Tacf : TargetedAcf
                 }
 
                 // middle of month
-                if (days < daysInMonth)
+                if (days <= daysInMonth)
                 {
                     break;
                 }
 
                 // beginning of month
                 month += 1;
-                // daysRemain -= daysInMonth;
                 days -= daysInMonth;
                 index += 1;
             }
 
-            // date = daysRemain;
             date = days;
-
-            // if (daysRemain > 0)
-            if (days > 0)
-            {
-                month += 1;
-            }
-            else
-            {
-                date = daysOfMonth[month - 1]; // month != 0
-
-                // add extra day for leap year
-                if (leap && (2 == month))
-                {
-                    date += 1;
-                }
-                else
-                {
-                    date = daysOfMonth[month - 1];
-                }
-            }
+            month += 1;
         }
 
         // convert to expected format
