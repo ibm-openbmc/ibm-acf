@@ -77,5 +77,5 @@ else
   incdir = []
   subdir('src')
 
-  library('pam_ibmacf', sources, include_directories : incdir, pic : true, name_prefix : '', dependencies : deps, install : true, install_dir : '/lib/security')
+  library('pam_ibmacf', sources, include_directories : incdir, pic : true, name_prefix : '', dependencies : deps, install : true, install_dir : get_option('libdir') / 'security')
 endif
