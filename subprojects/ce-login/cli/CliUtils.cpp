@@ -135,7 +135,7 @@ bool cli::generateEtcPasswdHash(const char* pwParm, const std::size_t pwLenParm,
     if(sSuccess)
     {
         sStdOut.erase(std::remove(sStdOut.begin(), sStdOut.end(), '\n'),
-                      sStdOut.cend());
+                      sStdOut.end());
         hashParm = sStdOut;
     }
 
