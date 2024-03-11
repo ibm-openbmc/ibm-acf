@@ -12,6 +12,8 @@ namespace CeLogin
 {
 extern const char* FrameworkEc_P10_Dev;
 extern const char* FrameworkEc_P10_Service;
+extern const char* FrameworkEc_P11_Dev;
+extern const char* FrameworkEc_P11_Service;
 
 enum
 {

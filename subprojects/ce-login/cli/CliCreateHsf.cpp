@@ -65,7 +65,7 @@ struct option create_long_options[NOptOptions + 1] = {
     {0, 0, 0, 0}};
 
 string create_options_description[NOptOptions] = {
-    "<processor gen (P10)>,<authority (dev,ce)>,<7-char serial number|UNSET>",
+    "<processor gen (P10,P11)>,<authority (dev,ce)>,<7-char serial number|UNSET>",
     "Password",
     "ExpirationDate - YYYY-MM-DD",
     "PrivateKeyFile",

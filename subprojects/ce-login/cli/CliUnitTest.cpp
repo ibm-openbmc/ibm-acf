@@ -7,6 +7,7 @@
 
 using cli::Machine;
 using cli::P10;
+using cli::P11;
 
 #include <CeLogin.h>
 #include <string.h>
@@ -577,6 +578,7 @@ CeLoginRc cplusplus_getServiceAuthorityV1(
 }
 
 static CeLogin::CeLoginCreateHsfArgsV1 GetDefaultHsfArgs();
+static CeLogin::CeLoginCreateHsfArgsV1 GetDefaultHsfArgsP11();
 
 static UnitTestResult ut_validate_defaults();
 static UnitTestResult ut_validate_unset_serial();
@@ -634,6 +636,25 @@ CeLogin::CeLoginCreateHsfArgsV1 GetDefaultHsfArgs()
     sCreateHsfArgs.mSourceFileName = "unit test";
     sCreateHsfArgs.mMachines.push_back(
         Machine("MySerial", CeLogin::ServiceAuth_CE, P10));
+    sCreateHsfArgs.mExpirationDate = "2021-12-20";
+    sCreateHsfArgs.mRequestId = "autogen-test-hsf";
+    sCreateHsfArgs.mHashedAuthCodeLength = 512 / 8;
+    sCreateHsfArgs.mSaltLength = 512 / 8;
+    sCreateHsfArgs.mIterations = CeLogin::CeLogin_PBKDF2_Iterations;
+    sCreateHsfArgs.mPasswordPtr = "password";
+    sCreateHsfArgs.mPasswordLength = strlen("password");
+    sCreateHsfArgs.mPasswordHashAlgorithm = CeLogin::PasswordHash_Production;
+    std::copy(key1_priv_der, key1_priv_der + key1_priv_der_len,
+              std::back_inserter(sCreateHsfArgs.mPrivateKey));
+    return sCreateHsfArgs;
+}
+
+CeLogin::CeLoginCreateHsfArgsV1 GetDefaultHsfArgsP11()
+{
+    CeLogin::CeLoginCreateHsfArgsV1 sCreateHsfArgs;
+    sCreateHsfArgs.mSourceFileName = "unit test";
+    sCreateHsfArgs.mMachines.push_back(
+        Machine("MySerial", CeLogin::ServiceAuth_CE, P11));
     sCreateHsfArgs.mExpirationDate = "2021-12-20";
     sCreateHsfArgs.mRequestId = "autogen-test-hsf";
     sCreateHsfArgs.mHashedAuthCodeLength = 512 / 8;
@@ -1293,6 +1314,29 @@ UnitTestResult ut_validate_defaults()
     CeLoginRc sRc = CeLoginRc::Success;
 
     CeLoginCreateHsfArgsV1 sHsfArgs = GetDefaultHsfArgs();
+    std::vector<uint8_t> sAcf;
+
+    sRc = createCeLoginAcfV1(sHsfArgs, sAcf);
+    DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
+
+    ServiceAuthority sAuth;
+    uint64_t sExp;
+    sRc = cplusplus_getServiceAuthorityV1(
+        sAcf, sHsfArgs.mPasswordPtr, 0, key1_pub_der, key1_pub_der_len,
+        sHsfArgs.mMachines.front().mSerialNumber, sAuth, sExp);
+    DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
+    DO_TEST(sResult, sExp > 0, sExp);
+    DO_TEST(sResult, sAuth == ServiceAuth_CE, sAuth);
+
+    return sResult;
+}
+
+UnitTestResult ut_validate_defaults_p11()
+{
+    UnitTestResult sResult;
+    CeLoginRc sRc = CeLoginRc::Success;
+
+    CeLoginCreateHsfArgsV1 sHsfArgs = GetDefaultHsfArgsP11();
     std::vector<uint8_t> sAcf;
 
     sRc = createCeLoginAcfV1(sHsfArgs, sAcf);

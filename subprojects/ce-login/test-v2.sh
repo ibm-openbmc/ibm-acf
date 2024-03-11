@@ -7,7 +7,7 @@ rm -f json.txt password.txt signature.bin acf.bin
 
 #./build/celogin_cli create_prod -v2 -n -t service -m P10,dev,UNSET -e 2023-05-01 -j json.txt  -p password.txt -d digest.bin
 
-./build/celogin_cli create_prod -v2 -t service -n -m P10,dev,13BE990 -m P10,dev,UNSET -e 2024-01-01 -j json.txt  -p password.txt
+./build/celogin_cli create_prod -v2 -t service -n -m P10,dev,13BE990 -m P10,dev,UNSET -e 2030-01-01 -j json.txt  -p password.txt
 #./build/celogin_cli create_prod -v2 -t adminreset -m P10,dev,13BE990 -m P10,dev,UNSET -e 2024-01-01 -j json.txt  -p password.txt
 #./build/celogin_cli create_prod -v2 -t service -m P10,dev,139B0C0 -e 2024-01-01 -j json.txt  -p password.txt -d digest.bin
 

@@ -3,6 +3,8 @@ namespace CeLogin
 {
 const char* FrameworkEc_P10_Dev = "PWR10D";
 const char* FrameworkEc_P10_Service = "PWR10S";
+const char* FrameworkEc_P11_Dev = "PWR11D";
+const char* FrameworkEc_P11_Service = "PWR11S";
 
 const char* JsonName_Version = "version";
 const char* JsonName_Machines = "machines";

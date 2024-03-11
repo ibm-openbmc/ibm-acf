@@ -74,7 +74,7 @@ struct option long_options[NOptOptions + 1] = {
     {0, 0, 0, 0}};
 
 string options_description[NOptOptions] = {
-    "<processor gen (P10)>,<authority (dev,ce)>,<7-char serial number|UNSET>",
+    "<processor gen (P10,P11)>,<authority (dev,ce)>,<7-char serial number|UNSET>",
     "ACF expiration date in the format: \"YYYY-MM-DD\"",
     "Path/file to write generated password into",
     "Comment to embed in ACF asn1. Written into the \"SourceFileName\" field",

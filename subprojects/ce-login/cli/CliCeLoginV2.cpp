@@ -144,6 +144,17 @@ CeLoginRc CeLogin::createCeLoginAcfV2Payload(
                         sFrameworkEcStr = FrameworkEc_P10_Service;
                     }
                 }
+                else if (cli::P11 == sArgsV1.mMachines[sIdx].mProc)
+                {
+                    if (ServiceAuth_Dev == sArgsV1.mMachines[sIdx].mAuth)
+                    {
+                        sFrameworkEcStr = FrameworkEc_P11_Dev;
+                    }
+                    else if (ServiceAuth_CE == sArgsV1.mMachines[sIdx].mAuth)
+                    {
+                        sFrameworkEcStr = FrameworkEc_P11_Service;
+                    }
+                }
 
                 json_object* sFrameworkEc =
                     json_object_new_string(sFrameworkEcStr.c_str());

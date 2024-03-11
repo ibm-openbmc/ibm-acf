@@ -2,7 +2,7 @@
 
 rm -f json.txt password.txt signature.bin acf.bin
 
-./build/celogin_cli create_prod -m P10,dev,1234567 -e 2023-01-03 -j json.txt  -p password.txt # -d digest.bin
+./build/celogin_cli create_prod -m P10,dev,1234567 -e 2030-01-03 -j json.txt  -p password.txt # -d digest.bin
 
 # Note, when using openssl it is easier to just recreate the digest instead of passing in the existing one
 openssl dgst -sign p10-celogin-lab-pkey.der -sha512 -keyform DER -out signature.bin  json.txt
