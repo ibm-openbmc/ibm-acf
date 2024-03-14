@@ -271,11 +271,11 @@ CeLogin::CeLoginRc CeLogin::createCeLoginAcfV1Signature(
     // TODO: Verify size matches expected size
     if (sPrivateKey)
     {
-        size_t sJsonSignatureSize = 0;
         generatedSignatureParm =
             std::vector<uint8_t>((EVP_PKEY_bits(sPrivateKey) + 7) / 8);
+        size_t sJsonSignatureSize = generatedSignatureParm.size();
         sRc = createSignature(sPrivateKey, EVP_sha512(),
-                              jsonDigestParm, generatedSignatureParm,
+                              jsonDigestParm.data(), jsonDigestParm.size(), generatedSignatureParm.data(),
                               sJsonSignatureSize);
     }
     else

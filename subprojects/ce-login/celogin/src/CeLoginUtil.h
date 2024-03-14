@@ -5,7 +5,6 @@
 #include <openssl/obj_mac.h>
 #include <openssl/sha.h>
 #include <openssl/evp.h>
-#include <vector>
 
 #ifndef _CELOGINUTIL_H
 #define _CELOGINUTIL_H
@@ -78,13 +77,29 @@ CeLoginRc
                                        const uint64_t frameworkEcLengthParm,
                                        ServiceAuthority& authParm);
 
+/// @brief Generic wrapper for verifying a signature with OpenSSL
+/// @param[in] publicKeyParm input public key to verify the signature with
+/// @param[in] mdTypeParm message digest type
+/// @param[in] signatureParm signature data to verify
+/// @param[in] signatureLengthParm signature data length
+/// @param[in] digestParm input digest
+/// @param[in] digestLengthParm input digest length
+/// @return CeLoginRc
 CeLoginRc verifySignature(EVP_PKEY* publicKeyParm, const EVP_MD* mdTypeParm, 
                           const uint8_t* signatureParm, size_t signatureLengthParm,
                           const uint8_t* digestParm, size_t digestLengthParm);
 
+/// @brief Generic wrapper for creating a signature with OpenSSL  
+/// @param[in] privateKeyParm input private key to create the signature with
+/// @param[in] mdParm message digest type
+/// @param[in] digestParm input digest
+/// @param[in] digestParmLength length of input digest buffer
+/// @param[out] generatedSignatureParm output signature buffer
+/// @param[inout] signatureSizeParm input signature buffer size, output generated signature size
+/// @return CeLoginRc
 CeLoginRc createSignature(EVP_PKEY* privateKeyParm, const EVP_MD* mdParm,
-                          const std::vector<uint8_t>& digestParm,
-                          std::vector<uint8_t>& generatedSignatureParm,
+                          const uint8_t* digestParm, size_t digestParmLength,
+                          uint8_t* generatedSignatureParm,
                           size_t& signatureSizeParm);
 }; // namespace CeLogin
 

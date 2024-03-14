@@ -504,8 +504,8 @@ CeLogin::CeLoginRc CeLogin::getServiceAuthorityFromFrameworkEc(
 }
 
 CeLogin::CeLoginRc CeLogin::createSignature(EVP_PKEY* privateKeyParm, const EVP_MD* mdParm,
-                                            const std::vector<uint8_t>& digestParm,
-                                            std::vector<uint8_t>& generatedSignatureParm,
+                                            const uint8_t* digestParm, size_t digestParmSize,
+                                            uint8_t* generatedSignatureParm,
                                             size_t& signatureSizeParm)
 {
     CeLoginRc sRc = CeLoginRc::Success;
@@ -530,16 +530,17 @@ CeLogin::CeLoginRc CeLogin::createSignature(EVP_PKEY* privateKeyParm, const EVP_
     if (1 == sResult)
     {
         // This call calculates the final signature length
+        size_t sCalculatedSignatureSize = 0;
         sResult =
-            EVP_PKEY_sign(sCtx, NULL, &signatureSizeParm,
-                            digestParm.data(), digestParm.size());
+            EVP_PKEY_sign(sCtx, NULL, &sCalculatedSignatureSize,
+                            digestParm, digestParmSize);
         if ((1 == sResult) &&
-            (generatedSignatureParm.size() == signatureSizeParm))
+            (sCalculatedSignatureSize == signatureSizeParm))
         {
             // This call creates the signature
             sResult = EVP_PKEY_sign(
-                sCtx, generatedSignatureParm.data(), &signatureSizeParm,
-                digestParm.data(), digestParm.size());
+                sCtx, generatedSignatureParm, &signatureSizeParm,
+                digestParm, digestParmSize);
         }
         else
         {
