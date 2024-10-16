@@ -35,7 +35,9 @@ enum AcfType
 {
     AcfType_Invalid = 0,
     AcfType_Service = 1,
-    AcfType_AdminReset = 2
+    AcfType_AdminReset = 2,
+    AcfType_ResourceDump = 3,
+    AcfType_BmcShell = 4,
 };
 
 struct CeLogin_Date

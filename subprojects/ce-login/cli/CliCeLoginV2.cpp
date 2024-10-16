@@ -23,13 +23,14 @@
 
 #include <chrono>
 #include <ctime>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <vector>
 
-using CeLogin::CeLoginRc;
 using CeLogin::CeLoginCreateHsfArgsV1;
 using CeLogin::CeLoginCreateHsfArgsV2;
+using CeLogin::CeLoginRc;
 
 CeLoginRc CeLogin::createCeLoginAcfV2Payload(
     const CeLoginCreateHsfArgsV2& argsParm, std::string& generatedJsonParm,
@@ -44,6 +45,8 @@ CeLoginRc CeLogin::createCeLoginAcfV2Payload(
     std::string sSaltHexString;
     std::string sReplayId = cli::generateReplayId();
     const bool sIsAdminReset = ("adminreset" == sArgsV2.mType);
+    const bool sIsResourceDump = ("resourcedump" == sArgsV2.mType);
+    const bool sIsBmcShell = ("bmcshell" == sArgsV2.mType);
 
     std::vector<uint8_t> sHashedAuthCode(sArgsV1.mHashedAuthCodeLength);
     std::vector<uint8_t> sSalt(sArgsV1.mSaltLength, 0);
@@ -122,7 +125,10 @@ CeLoginRc CeLogin::createCeLoginAcfV2Payload(
             json_object_new_string(sArgsV1.mRequestId.c_str());
         json_object* sReplayIdJson = json_object_new_string(sReplayId.c_str());
         json_object* sAdminAuthCodeJson = nullptr;
-        json_object* sAcfTypeJson = json_object_new_string(sArgsV2.mType.c_str());
+        json_object* sAcfTypeJson =
+            json_object_new_string(sArgsV2.mType.c_str());
+        json_object* sResourceDumpsJson = nullptr;
+        json_object* sBmcShellJson = nullptr;
 
         if (sJsonObj && sVersion && sMachinesArray && sHashedPassword &&
             sExpirationDate && sRequestId && sReplayIdJson && sAcfTypeJson)
@@ -185,39 +191,103 @@ CeLoginRc CeLogin::createCeLoginAcfV2Payload(
             json_object_object_add(sJsonObj, JsonName_Type, sAcfTypeJson);
             json_object_object_add(sJsonObj, JsonName_Machines, sMachinesArray);
 
-            if(sIsAdminReset)
+            if (sIsAdminReset)
             {
                 std::string sAdminAuthCode;
-                if(cli::generateEtcPasswdHash(sArgsV1.mPasswordPtr, sArgsV1.mPasswordLength,
-                                              sSaltHexString, sAdminAuthCode))
+                if (cli::generateEtcPasswdHash(sArgsV1.mPasswordPtr,
+                                               sArgsV1.mPasswordLength,
+                                               sSaltHexString, sAdminAuthCode))
                 {
-                    std::vector<uint8_t> sAuthCodeBytes(sAdminAuthCode.begin(), sAdminAuthCode.end());
-                    std::string sHexEncodedAuthCode = cli::getHexStringFromBinary(sAuthCodeBytes);
+                    std::vector<uint8_t> sAuthCodeBytes(sAdminAuthCode.begin(),
+                                                        sAdminAuthCode.end());
+                    std::string sHexEncodedAuthCode =
+                        cli::getHexStringFromBinary(sAuthCodeBytes);
 
-                    sAdminAuthCodeJson = json_object_new_string(sHexEncodedAuthCode.c_str());
-                    if(NULL != sAdminAuthCodeJson)
+                    sAdminAuthCodeJson =
+                        json_object_new_string(sHexEncodedAuthCode.c_str());
+                    if (NULL != sAdminAuthCodeJson)
                     {
-                        json_object_object_add(sJsonObj, JsonName_AdminAuthCode, sAdminAuthCodeJson);
+                        json_object_object_add(sJsonObj, JsonName_AdminAuthCode,
+                                               sAdminAuthCodeJson);
                     }
-                    else { sRc = CeLoginRc::Failure; }
+                    else
+                    {
+                        sRc = CeLoginRc::Failure;
+                    }
                 }
-                else { sRc = CeLoginRc::Failure; }
+                else
+                {
+                    sRc = CeLoginRc::Failure;
+                }
+            }
+            else if (sIsResourceDump)
+            {
+                if (!sArgsV2.mScriptFile.empty())
+                {
+                    std::ifstream sFh;
+                    sFh.open(sArgsV2.mScriptFile.c_str(),
+                             std::ios::in | std::ios::binary);
+                    if (sFh.is_open())
+                    {
+                        std::ostringstream sResourceDumpStream;
+                        sResourceDumpStream << sFh.rdbuf();
+                        std::string sResourceDumpStr =
+                            sResourceDumpStream.str();
+                        sFh.close();
+                        sResourceDumpsJson =
+                            json_object_new_string(sResourceDumpStr.c_str());
+                        json_object_object_add(sJsonObj, JsonName_ResourceDumps,
+                                               sResourceDumpsJson);
+                    }
+                }
+                else
+                {
+                    sRc = CeLoginRc::Failure;
+                }
+            }
+            else if (sIsBmcShell)
+            {
+                if (!sArgsV2.mScriptFile.empty())
+                {
+                    std::ifstream sFh;
+                    sFh.open(sArgsV2.mScriptFile.c_str(),
+                             std::ios::in | std::ios::binary);
+                    if (sFh.is_open())
+                    {
+                        std::ostringstream sBmcShellStream;
+                        sBmcShellStream << sFh.rdbuf();
+                        std::string sBmcShellStr = sBmcShellStream.str();
+                        sFh.close();
+                        sBmcShellJson =
+                            json_object_new_string(sBmcShellStr.c_str());
+                        json_object_object_add(
+                            sJsonObj, JsonName_BmcShellScript, sBmcShellJson);
+                    }
+                }
+                else
+                {
+                    sRc = CeLoginRc::Failure;
+                }
             }
             else // service type
             {
-                json_object_object_add(sJsonObj, JsonName_HashedAuthCode, sHashedPassword);
+                json_object_object_add(sJsonObj, JsonName_HashedAuthCode,
+                                       sHashedPassword);
                 json_object_object_add(sJsonObj, JsonName_Salt, sSaltObj);
-                json_object_object_add(sJsonObj, JsonName_Iterations, sIterationsObj);
+                json_object_object_add(sJsonObj, JsonName_Iterations,
+                                       sIterationsObj);
             }
 
             json_object_object_add(sJsonObj, JsonName_RequestId, sRequestId);
 
-            if(!sArgsV2.mNoReplayId)
+            if (!sArgsV2.mNoReplayId)
             {
-                json_object_object_add(sJsonObj, JsonName_ReplayId, sReplayIdJson);
+                json_object_object_add(sJsonObj, JsonName_ReplayId,
+                                       sReplayIdJson);
             }
 
-            json_object_object_add(sJsonObj, JsonName_Expiration, sExpirationDate);
+            json_object_object_add(sJsonObj, JsonName_Expiration,
+                                   sExpirationDate);
 
             // When the json object is free'd this string will also be free'd
             const char* sGeneratedJsonString =
@@ -270,17 +340,27 @@ CeLoginRc CeLogin::createCeLoginAcfV2Payload(
                 json_object_put(sRequestId);
                 sRequestId = NULL;
             }
-            if(sReplayIdJson)
+            if (sReplayIdJson)
             {
                 json_object_put(sReplayIdJson);
                 sReplayIdJson = NULL;
             }
-            if(sAdminAuthCodeJson)
+            if (sAdminAuthCodeJson)
             {
                 json_object_put(sAdminAuthCodeJson);
                 sAdminAuthCodeJson = NULL;
             }
-            if(sAcfTypeJson)
+            if (sResourceDumpsJson)
+            {
+                json_object_put(sResourceDumpsJson);
+                sResourceDumpsJson = NULL;
+            }
+            if (sBmcShellJson)
+            {
+                json_object_put(sBmcShellJson);
+                sBmcShellJson = NULL;
+            }
+            if (sAcfTypeJson)
             {
                 json_object_put(sAcfTypeJson);
                 sAcfTypeJson = NULL;
