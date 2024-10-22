@@ -294,7 +294,7 @@ bool validateArgs(const Arguments& args, Operation& operationParm,
         {
             if (sNoReplayId)
             {
-#ifndef TOLERATE_ADMIN_RESET_REPLAY
+#ifndef TOLERATE_TARGETED_ACF_REPLAY
                 sIsValidArgs = false;
                 cerr
                     << "Admin reset, resource dump, or bmc shell type requires replay ID"

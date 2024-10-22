@@ -93,7 +93,7 @@ all_srcs = ce_login_sources + cli_sources
 
 #compiler arguments
 args = ['-O2', '-DOPENSSL_NO_DEPRECATED']
-#args = ['-O2', '-DOPENSSL_NO_DEPRECATED', '-DCELOGIN_POWERVM_TARGET']
+#args = ['-O2', '-DOPENSSL_NO_DEPRECATED', '-DCELOGIN_POWERVM_TARGET', '-DTOLERATE_TARGETED_ACF_REPLAY']
 
 #library target
 if get_option('lib')

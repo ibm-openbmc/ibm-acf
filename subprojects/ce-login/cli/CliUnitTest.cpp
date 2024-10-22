@@ -1087,6 +1087,52 @@ UnitTestResult ut_acf_metadata_v2()
     DO_TEST(sResult, true == sHasReplayId, sHasReplayId);
 
     //
+    // Resource dump ACF
+    //
+    sHsfArgsV2.mV1Args = sHsfArgs;
+    sHsfArgsV2.mNoReplayId = false;
+    sHsfArgsV2.mType = "resourcedump";
+    sHsfArgsV2.mScript = "resourcedump command1;";
+
+    sRc = createCeLoginAcfV2(sHsfArgsV2, sAcf);
+    DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
+
+    sRc = CeLogin::extractACFMetadataV2(
+        sAcf.data(), sAcf.size(), 0, key1_pub_der, key1_pub_der_len,
+        sHsfArgs.mMachines.front().mSerialNumber.c_str(),
+        sHsfArgs.mMachines.front().mSerialNumber.length(), sType, sExp, sDate,
+        sVersion, sHasReplayId);
+
+    DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
+    DO_TEST(sResult, sType == AcfType_ResourceDump, sType);
+    DO_TEST(sResult, sExp > 0, sExp);
+    DO_TEST(sResult, sVersion == CeLoginVersion2, sVersion);
+    DO_TEST(sResult, true == sHasReplayId, sHasReplayId);
+
+    //
+    // Bmc shell ACF
+    //
+    sHsfArgsV2.mV1Args = sHsfArgs;
+    sHsfArgsV2.mNoReplayId = false;
+    sHsfArgsV2.mType = "bmcshell";
+    sHsfArgsV2.mScript = "bmcshell command1;";
+
+    sRc = createCeLoginAcfV2(sHsfArgsV2, sAcf);
+    DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
+
+    sRc = CeLogin::extractACFMetadataV2(
+        sAcf.data(), sAcf.size(), 0, key1_pub_der, key1_pub_der_len,
+        sHsfArgs.mMachines.front().mSerialNumber.c_str(),
+        sHsfArgs.mMachines.front().mSerialNumber.length(), sType, sExp, sDate,
+        sVersion, sHasReplayId);
+
+    DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
+    DO_TEST(sResult, sType == AcfType_BmcShell, sType);
+    DO_TEST(sResult, sExp > 0, sExp);
+    DO_TEST(sResult, sVersion == CeLoginVersion2, sVersion);
+    DO_TEST(sResult, true == sHasReplayId, sHasReplayId);
+
+    //
     // Service V2 with replay ID
     //
     sHsfArgsV2.mV1Args = sHsfArgs;
@@ -1324,6 +1370,124 @@ UnitTestResult ut_powervm()
                 0,
             sFields.mTypeSpecificFields.mAdminResetFields.mAdminAuthCodeLength);
     DO_TEST(sResult, sReplayId > sExistingReplayId, sReplayId);
+
+    //
+    // Resource dump ACF (no replay)
+    //
+    sExistingReplayId = 0xFFFF;
+    sReplayId = 0;
+    sFields.clear();
+    sHsfArgsV2.mV1Args = sHsfArgs;
+    sHsfArgsV2.mNoReplayId = true;
+    sHsfArgsV2.mType = "resourcedump";
+    sHsfArgsV2.mScript = "resourcedump command1; resourcedump command2;";
+
+    sRc = createCeLoginAcfV2(sHsfArgsV2, sAcf);
+    DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
+
+    sRc = CeLogin::checkAuthorizationAndGetAcfUserFieldsV2ForPowerVM(
+        sAcf.data(), sAcf.size(), sHsfArgs.mPasswordPtr,
+        sHsfArgs.mPasswordLength, 0, key1_pub_der, key1_pub_der_len,
+        sHsfArgs.mMachines.front().mSerialNumber.c_str(),
+        sHsfArgs.mMachines.front().mSerialNumber.length(), sExistingReplayId,
+        sReplayId, sFailIfReplayIdPresent, sFields);
+    DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
+    DO_TEST(sResult, sFields.mVersion == CeLoginVersion2, sFields.mVersion);
+    DO_TEST(sResult, sFields.mType == AcfType_ResourceDump, sFields.mType);
+    DO_TEST(sResult,
+            !sHsfArgsV2.mScript.compare(std::string(
+                sFields.mTypeSpecificFields.mResourceDumpFields.mResourceDump,
+                sFields.mTypeSpecificFields.mResourceDumpFields
+                    .mResourceDumpLength)),
+            sHsfArgsV2.mScript);
+    //
+    // Resource dump ACF (replay)
+    //
+    sExistingReplayId = 0xFFFF;
+    sReplayId = 0;
+    sFields.clear();
+    sHsfArgsV2.mV1Args = sHsfArgs;
+    sHsfArgsV2.mNoReplayId = false;
+    sHsfArgsV2.mType = "resourcedump";
+
+    sRc = createCeLoginAcfV2(sHsfArgsV2, sAcf);
+    DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
+
+    sRc = CeLogin::checkAuthorizationAndGetAcfUserFieldsV2ForPowerVM(
+        sAcf.data(), sAcf.size(), sHsfArgs.mPasswordPtr,
+        sHsfArgs.mPasswordLength, 0, key1_pub_der, key1_pub_der_len,
+        sHsfArgs.mMachines.front().mSerialNumber.c_str(),
+        sHsfArgs.mMachines.front().mSerialNumber.length(), sExistingReplayId,
+        sReplayId, sFailIfReplayIdPresent, sFields);
+
+    DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
+    DO_TEST(sResult, sFields.mVersion == CeLoginVersion2, sFields.mVersion);
+    DO_TEST(sResult, sFields.mType == AcfType_ResourceDump, sFields.mType);
+    DO_TEST(sResult, sFields.mExpirationTime > 0, sFields.mExpirationTime);
+    DO_TEST(sResult,
+            !sHsfArgsV2.mScript.compare(std::string(
+                sFields.mTypeSpecificFields.mResourceDumpFields.mResourceDump,
+                sFields.mTypeSpecificFields.mResourceDumpFields
+                    .mResourceDumpLength)),
+            sHsfArgsV2.mScript);
+
+    //
+    // Bmc shell ACF (no replay)
+    //
+    sExistingReplayId = 0xFFFF;
+    sReplayId = 0;
+    sFields.clear();
+    sHsfArgsV2.mV1Args = sHsfArgs;
+    sHsfArgsV2.mNoReplayId = true;
+    sHsfArgsV2.mType = "bmcshell";
+    sHsfArgsV2.mScript = "bmcshell command1; bmcshell command2;";
+
+    sRc = createCeLoginAcfV2(sHsfArgsV2, sAcf);
+    DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
+
+    sRc = CeLogin::checkAuthorizationAndGetAcfUserFieldsV2ForPowerVM(
+        sAcf.data(), sAcf.size(), sHsfArgs.mPasswordPtr,
+        sHsfArgs.mPasswordLength, 0, key1_pub_der, key1_pub_der_len,
+        sHsfArgs.mMachines.front().mSerialNumber.c_str(),
+        sHsfArgs.mMachines.front().mSerialNumber.length(), sExistingReplayId,
+        sReplayId, sFailIfReplayIdPresent, sFields);
+    DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
+    DO_TEST(sResult, sFields.mVersion == CeLoginVersion2, sFields.mVersion);
+    DO_TEST(sResult, sFields.mType == AcfType_BmcShell, sFields.mType);
+    DO_TEST(sResult,
+            !sHsfArgsV2.mScript.compare(std::string(
+                sFields.mTypeSpecificFields.mBmcShellFields.mBmcShell,
+                sFields.mTypeSpecificFields.mBmcShellFields.mBmcShellLength)),
+            sHsfArgsV2.mScript);
+    //
+    // Resource dump ACF (replay)
+    //
+    sExistingReplayId = 0xFFFF;
+    sReplayId = 0;
+    sFields.clear();
+    sHsfArgsV2.mV1Args = sHsfArgs;
+    sHsfArgsV2.mNoReplayId = false;
+    sHsfArgsV2.mType = "bmcshell";
+
+    sRc = createCeLoginAcfV2(sHsfArgsV2, sAcf);
+    DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
+
+    sRc = CeLogin::checkAuthorizationAndGetAcfUserFieldsV2ForPowerVM(
+        sAcf.data(), sAcf.size(), sHsfArgs.mPasswordPtr,
+        sHsfArgs.mPasswordLength, 0, key1_pub_der, key1_pub_der_len,
+        sHsfArgs.mMachines.front().mSerialNumber.c_str(),
+        sHsfArgs.mMachines.front().mSerialNumber.length(), sExistingReplayId,
+        sReplayId, sFailIfReplayIdPresent, sFields);
+
+    DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
+    DO_TEST(sResult, sFields.mVersion == CeLoginVersion2, sFields.mVersion);
+    DO_TEST(sResult, sFields.mType == AcfType_BmcShell, sFields.mType);
+    DO_TEST(sResult, sFields.mExpirationTime > 0, sFields.mExpirationTime);
+    DO_TEST(sResult,
+            !sHsfArgsV2.mScript.compare(std::string(
+                sFields.mTypeSpecificFields.mBmcShellFields.mBmcShell,
+                sFields.mTypeSpecificFields.mBmcShellFields.mBmcShellLength)),
+            sHsfArgsV2.mScript);
 
     // Validation should fail if requested and replay ID present
     sFailIfReplayIdPresent = true;
