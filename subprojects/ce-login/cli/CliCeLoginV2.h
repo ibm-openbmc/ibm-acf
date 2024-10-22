@@ -30,7 +30,7 @@ struct CeLoginCreateHsfArgsV2
     CeLoginCreateHsfArgsV1 mV1Args;
     bool mNoReplayId;
     std::string mType;
-    std::string mScriptFile;
+    std::string mScript;
 };
 
 struct CeLoginDecryptedHsfArgsV2

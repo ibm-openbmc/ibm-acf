@@ -10,8 +10,8 @@
 
 #include <new>
 
-using CeLogin::CeLoginRc;
 using CeLogin::CeLoginJsonData;
+using CeLogin::CeLoginRc;
 using CeLogin::CELoginSequenceV1;
 
 // This common helper function performs three operations:
@@ -91,36 +91,34 @@ static CeLoginRc validateAndParseAcfV2(
 }
 
 static CeLogin::CeLoginRc doFullReplayValidation(
-    const CeLogin::AcfType  acfTypeParm,
-    const bool replayIdPresent,
-    const uint64_t currentPersistedReplayIdParm,
-    const uint64_t acfReplayIdParm,
+    const CeLogin::AcfType acfTypeParm, const bool replayIdPresent,
+    const uint64_t currentPersistedReplayIdParm, const uint64_t acfReplayIdParm,
     uint64_t& updatedReplayIdParm)
 {
     CeLoginRc sRc = CeLoginRc::Success;
 
-    if(replayIdPresent)
+    if (replayIdPresent)
     {
         // The validity checks here depend on ACF type
         // Since a service ACF may be validated more than once, we will tolerate
-        // a replay ID that is >= the persisted value. All other use cases (today)
-        // require a strict inequality
-        if(CeLogin::AcfType_Service == acfTypeParm)
+        // a replay ID that is >= the persisted value. All other use cases
+        // (today) require a strict inequality
+        if (CeLogin::AcfType_Service == acfTypeParm)
         {
-            if(acfReplayIdParm < currentPersistedReplayIdParm)
+            if (acfReplayIdParm < currentPersistedReplayIdParm)
             {
                 sRc = CeLoginRc::InvalidReplayId;
             }
         }
         else
         {
-            if(acfReplayIdParm <= currentPersistedReplayIdParm)
+            if (acfReplayIdParm <= currentPersistedReplayIdParm)
             {
                 sRc = CeLoginRc::InvalidReplayId;
             }
         }
 
-        if(CeLoginRc::Success == sRc)
+        if (CeLoginRc::Success == sRc)
         {
             updatedReplayIdParm = acfReplayIdParm;
         }
@@ -140,8 +138,8 @@ CeLoginRc CeLogin::extractACFMetadataV2(
     const uint8_t* publicKeyParm, const uint64_t publicKeyLengthParm,
     const char* serialNumberParm, const uint64_t serialNumberLengthParm,
     AcfType& acfTypeParm, uint64_t& expirationTimeParm,
-    CeLogin_Date& expirationDateParm,
-    AcfVersion& versionParm, bool& hasReplayIdParm)
+    CeLogin_Date& expirationDateParm, AcfVersion& versionParm,
+    bool& hasReplayIdParm)
 {
     CeLoginRc sRc = CeLoginRc::Success;
     CeLoginJsonData* sJsonData = NULL;
@@ -197,10 +195,11 @@ CeLoginRc CeLogin::extractACFMetadataV2(
 
     if (CeLoginRc::Success == sRc)
     {
-        sRc = validateAndParseAcfV2(accessControlFileParm, accessControlFileLengthParm,
-                timeSinceUnixEpochInSecondsParm, publicKeyParm, publicKeyLengthParm,
-                serialNumberParm, serialNumberLengthParm,
-                *sJsonData, sExpirationTime);
+        sRc = validateAndParseAcfV2(
+            accessControlFileParm, accessControlFileLengthParm,
+            timeSinceUnixEpochInSecondsParm, publicKeyParm, publicKeyLengthParm,
+            serialNumberParm, serialNumberLengthParm, *sJsonData,
+            sExpirationTime);
     }
 
     // This interface only supports V1 and V2
@@ -294,10 +293,11 @@ CeLoginRc CeLogin::verifyACFForBMCUploadV2(
 
     if (CeLoginRc::Success == sRc)
     {
-        sRc = validateAndParseAcfV2(accessControlFileParm, accessControlFileLengthParm,
-                timeSinceUnixEpochInSecondsParm, publicKeyParm, publicKeyLengthParm,
-                serialNumberParm, serialNumberLengthParm,
-                *sJsonData, sExpirationTime);
+        sRc = validateAndParseAcfV2(
+            accessControlFileParm, accessControlFileLengthParm,
+            timeSinceUnixEpochInSecondsParm, publicKeyParm, publicKeyLengthParm,
+            serialNumberParm, serialNumberLengthParm, *sJsonData,
+            sExpirationTime);
     }
 
     // This interface only supports V1 and V2
@@ -311,13 +311,12 @@ CeLoginRc CeLogin::verifyACFForBMCUploadV2(
     }
 
     // Verify Replay ID
-    if(CeLoginRc::Success == sRc)
+    if (CeLoginRc::Success == sRc)
     {
-        sRc = doFullReplayValidation(sJsonData->mType,
-                                     sJsonData->mReplayInfo.mReplayIdPresent,
-                                     currentReplayIdParm,
-                                     sJsonData->mReplayInfo.mReplayId,
-                                     updatedReplayIdParm);
+        sRc = doFullReplayValidation(
+            sJsonData->mType, sJsonData->mReplayInfo.mReplayIdPresent,
+            currentReplayIdParm, sJsonData->mReplayInfo.mReplayId,
+            updatedReplayIdParm);
     }
 
     if (CeLoginRc::Success == sRc)
@@ -337,8 +336,9 @@ CeLoginRc CeLogin::verifyACFForBMCUploadV2(
 #endif /* CELOGIN_POWERVM_TARGET */
 
 static CeLoginRc checkAuthorizationAndGetAcfUserFieldsV2Internal(
-    const uint8_t* accessControlFileParm, const uint64_t accessControlFileLengthParm,
-    const char* passwordParm, const uint64_t passwordLengthParm,
+    const uint8_t* accessControlFileParm,
+    const uint64_t accessControlFileLengthParm, const char* passwordParm,
+    const uint64_t passwordLengthParm,
     const uint64_t timeSinceUnixEpochInSecondsParm,
     const uint8_t* publicKeyParm, const uint64_t publicKeyLengthParm,
     const char* serialNumberParm, const uint64_t serialNumberLengthParm,
@@ -399,10 +399,11 @@ static CeLoginRc checkAuthorizationAndGetAcfUserFieldsV2Internal(
 
     if (CeLoginRc::Success == sRc)
     {
-        sRc = validateAndParseAcfV2(accessControlFileParm, accessControlFileLengthParm,
-                timeSinceUnixEpochInSecondsParm, publicKeyParm, publicKeyLengthParm,
-                serialNumberParm, serialNumberLengthParm,
-                *sJsonData, sExpirationTime);
+        sRc = validateAndParseAcfV2(
+            accessControlFileParm, accessControlFileLengthParm,
+            timeSinceUnixEpochInSecondsParm, publicKeyParm, publicKeyLengthParm,
+            serialNumberParm, serialNumberLengthParm, *sJsonData,
+            sExpirationTime);
     }
 
     // This interface only supports V1 and V2
@@ -416,7 +417,8 @@ static CeLoginRc checkAuthorizationAndGetAcfUserFieldsV2Internal(
     }
 
     // Need to verify the password for service ACF
-    if (CeLoginRc::Success == sRc && CeLogin::AcfType_Service == sJsonData->mType)
+    if (CeLoginRc::Success == sRc &&
+        CeLogin::AcfType_Service == sJsonData->mType)
     {
         if (!passwordParm)
         {
@@ -457,7 +459,7 @@ static CeLoginRc checkAuthorizationAndGetAcfUserFieldsV2Internal(
         userFieldsParm.mType = sJsonData->mType;
         userFieldsParm.mExpirationTime = sExpirationTime;
 
-        if(sJsonData->mReplayInfo.mReplayIdPresent)
+        if (sJsonData->mReplayInfo.mReplayIdPresent)
         {
             replayIdPresentParm = true;
             acfReplayIdParm = sJsonData->mReplayInfo.mReplayId;
@@ -472,17 +474,57 @@ static CeLoginRc checkAuthorizationAndGetAcfUserFieldsV2Internal(
             }
             else
             {
-		// Reconstruct the ASCII version from hex
-		sRc = CeLogin::getBinaryFromHex((const char*)sJsonData->mAdminAuthCode,
-				                sJsonData->mAdminAuthCodeLength,
-						(uint8_t*)userFieldsParm.mTypeSpecificFields.mAdminResetFields.mAdminAuthCode,
-						CeLogin::AdminAuthCodeMaxLen,
-						userFieldsParm.mTypeSpecificFields.mAdminResetFields.mAdminAuthCodeLength);
+                // Reconstruct the ASCII version from hex
+                sRc = CeLogin::getBinaryFromHex(
+                    (const char*)sJsonData->mAdminAuthCode,
+                    sJsonData->mAdminAuthCodeLength,
+                    (uint8_t*)userFieldsParm.mTypeSpecificFields
+                        .mAdminResetFields.mAdminAuthCode,
+                    CeLogin::AdminAuthCodeMaxLen,
+                    userFieldsParm.mTypeSpecificFields.mAdminResetFields
+                        .mAdminAuthCodeLength);
+            }
+        }
+        else if (CeLogin::AcfType_ResourceDump == sJsonData->mType)
+        {
+            if (sJsonData->mAsciiScriptFileLength == 0 ||
+                sJsonData->mAsciiScriptFileLength >=
+                    CeLogin::MaxAsciiScriptFileLength)
+            {
+                sRc = CeLoginRc::Failure;
+            }
+            else
+            {
+                memcpy(userFieldsParm.mTypeSpecificFields.mResourceDumpFields
+                           .mResourceDump,
+                       sJsonData->mAsciiScriptFile,
+                       sJsonData->mAsciiScriptFileLength);
+                userFieldsParm.mTypeSpecificFields.mResourceDumpFields
+                    .mResourceDumpLength = sJsonData->mAsciiScriptFileLength;
+            }
+        }
+        else if (CeLogin::AcfType_BmcShell == sJsonData->mType)
+        {
+            if (sJsonData->mAsciiScriptFileLength == 0 ||
+                sJsonData->mAsciiScriptFileLength >=
+                    CeLogin::MaxAsciiScriptFileLength)
+            {
+                sRc = CeLoginRc::Failure;
+            }
+            else
+            {
+                memcpy(userFieldsParm.mTypeSpecificFields.mBmcShellFields
+                           .mBmcShell,
+                       sJsonData->mAsciiScriptFile,
+                       sJsonData->mAsciiScriptFileLength);
+                userFieldsParm.mTypeSpecificFields.mBmcShellFields
+                    .mBmcShellLength = sJsonData->mAsciiScriptFileLength;
             }
         }
         else if (CeLogin::AcfType_Service == sJsonData->mType)
         {
-            userFieldsParm.mTypeSpecificFields.mServiceFields.mAuth = sJsonData->mRequestedAuthority;
+            userFieldsParm.mTypeSpecificFields.mServiceFields.mAuth =
+                sJsonData->mRequestedAuthority;
         }
     }
 
@@ -497,8 +539,9 @@ static CeLoginRc checkAuthorizationAndGetAcfUserFieldsV2Internal(
 
 #ifndef CELOGIN_POWERVM_TARGET
 CeLoginRc CeLogin::checkAuthorizationAndGetAcfUserFieldsV2(
-    const uint8_t* accessControlFileParm, const uint64_t accessControlFileLengthParm,
-    const char* passwordParm, const uint64_t passwordLengthParm,
+    const uint8_t* accessControlFileParm,
+    const uint64_t accessControlFileLengthParm, const char* passwordParm,
+    const uint64_t passwordLengthParm,
     const uint64_t timeSinceUnixEpochInSecondsParm,
     const uint8_t* publicKeyParm, const uint64_t publicKeyLengthParm,
     const char* serialNumberParm, const uint64_t serialNumberLengthParm,
@@ -509,18 +552,17 @@ CeLoginRc CeLogin::checkAuthorizationAndGetAcfUserFieldsV2(
 
     CeLoginRc sRc = checkAuthorizationAndGetAcfUserFieldsV2Internal(
         accessControlFileParm, accessControlFileLengthParm, passwordParm,
-        passwordLengthParm, timeSinceUnixEpochInSecondsParm,
-        publicKeyParm, publicKeyLengthParm, serialNumberParm,
-        serialNumberLengthParm, sHasReplayId, sAcfReplayId,
-        userFieldsParm);
+        passwordLengthParm, timeSinceUnixEpochInSecondsParm, publicKeyParm,
+        publicKeyLengthParm, serialNumberParm, serialNumberLengthParm,
+        sHasReplayId, sAcfReplayId, userFieldsParm);
 
-    if(CeLoginRc::Success == sRc && sHasReplayId)
+    if (CeLoginRc::Success == sRc && sHasReplayId)
     {
         // On this interface, we require that the provided replay id match the
         // replay id in the ACF EXACTLY. The upload interface is responsible
         // for persisting the new value, so if we get this far, we know the
         // updated replay ID was never persisted.
-        if(sAcfReplayId != currentReplayIdParm)
+        if (sAcfReplayId != currentReplayIdParm)
         {
             sRc = CeLoginRc::ReplayIdPersistenceFailure;
         }
@@ -530,41 +572,40 @@ CeLoginRc CeLogin::checkAuthorizationAndGetAcfUserFieldsV2(
 }
 #else
 CeLoginRc CeLogin::checkAuthorizationAndGetAcfUserFieldsV2ForPowerVM(
-    const uint8_t* accessControlFileParm, const uint64_t accessControlFileLengthParm,
-    const char* passwordParm, const uint64_t passwordLengthParm,
+    const uint8_t* accessControlFileParm,
+    const uint64_t accessControlFileLengthParm, const char* passwordParm,
+    const uint64_t passwordLengthParm,
     const uint64_t timeSinceUnixEpochInSecondsParm,
     const uint8_t* publicKeyParm, const uint64_t publicKeyLengthParm,
     const char* serialNumberParm, const uint64_t serialNumberLengthParm,
     const uint64_t currentReplayIdParm, uint64_t& updatedReplayIdParm,
-    const bool failValidationIfReplayIdPresentParm, AcfUserFields& userFieldsParm)
+    const bool failValidationIfReplayIdPresentParm,
+    AcfUserFields& userFieldsParm)
 {
     bool sHasReplayId = false;
     uint64_t sAcfReplayId = 0;
 
     CeLoginRc sRc = checkAuthorizationAndGetAcfUserFieldsV2Internal(
         accessControlFileParm, accessControlFileLengthParm, passwordParm,
-        passwordLengthParm, timeSinceUnixEpochInSecondsParm,
-        publicKeyParm, publicKeyLengthParm, serialNumberParm,
-        serialNumberLengthParm, sHasReplayId, sAcfReplayId,
-        userFieldsParm);
+        passwordLengthParm, timeSinceUnixEpochInSecondsParm, publicKeyParm,
+        publicKeyLengthParm, serialNumberParm, serialNumberLengthParm,
+        sHasReplayId, sAcfReplayId, userFieldsParm);
 
     // Verify Replay ID
-    if(CeLoginRc::Success == sRc)
+    if (CeLoginRc::Success == sRc)
     {
-        if(failValidationIfReplayIdPresentParm && sHasReplayId)
+        if (failValidationIfReplayIdPresentParm && sHasReplayId)
         {
             sRc = CeLoginRc::PowerVMRequestedReplayFailure;
         }
         else
         {
-            sRc = doFullReplayValidation(userFieldsParm.mType,
-                                         sHasReplayId,
-                                         currentReplayIdParm,
-                                         sAcfReplayId, updatedReplayIdParm);
+            sRc = doFullReplayValidation(userFieldsParm.mType, sHasReplayId,
+                                         currentReplayIdParm, sAcfReplayId,
+                                         updatedReplayIdParm);
         }
     }
 
     return sRc;
 }
 #endif /* CELOGIN_POWERVM_TARGET */
-

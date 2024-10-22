@@ -29,6 +29,7 @@ enum
 {
     CeLogin_PBKDF2_Iterations = 100000,
     AdminAuthCodeMaxLen = 256,
+    MaxAsciiScriptFileLength = 1024,
 };
 
 enum AcfType
@@ -73,7 +74,6 @@ struct CeLoginRc
         InvalidReplayId = 0x0A,
         ReplayIdPersistenceFailure = 0x0B,
         PowerVMRequestedReplayFailure = 0x0C,
-
 
         CreateHsf_PasswordHashFailure = 0x13,
         CreateHsf_JsonHashFailure = 0x14,
@@ -189,7 +189,10 @@ struct CeLoginRc
 
 struct AcfUserFields
 {
-    AcfUserFields() { clear(); }
+    AcfUserFields()
+    {
+        clear();
+    }
 
     void clear()
     {
@@ -199,9 +202,9 @@ struct AcfUserFields
         memset(&mTypeSpecificFields, 0x00, sizeof(mTypeSpecificFields));
     }
 
-    AcfVersion  mVersion;
-    AcfType     mType;
-    uint64_t    mExpirationTime;
+    AcfVersion mVersion;
+    AcfType mType;
+    uint64_t mExpirationTime;
 
     union
     {
@@ -216,6 +219,18 @@ struct AcfUserFields
             uint64_t mAdminAuthCodeLength;
         } mAdminResetFields;
 
+        struct
+        {
+            char mResourceDump[MaxAsciiScriptFileLength];
+            uint64_t mResourceDumpLength;
+        } mResourceDumpFields;
+
+        struct
+        {
+            char mBmcShell[MaxAsciiScriptFileLength];
+            uint64_t mBmcShellLength;
+        } mBmcShellFields;
+
     } mTypeSpecificFields;
 };
 
@@ -224,82 +239,93 @@ CeLoginRc getServiceAuthorityV1(
     const uint8_t* accessControlFileParm,
     const uint64_t accessControlFileLengthParm, const char* passwordParm,
     const uint64_t passwordLengthParm,
-    const uint64_t timeSinceUnixEpochInSecondsParm, const uint8_t* publicKeyParm,
-    const uint64_t publicKeyLengthParm, const char* serialNumberParm,
-    const uint64_t serialNumberLengthParm, ServiceAuthority& authorityParm,
-    uint64_t& expirationTimeParm);
+    const uint64_t timeSinceUnixEpochInSecondsParm,
+    const uint8_t* publicKeyParm, const uint64_t publicKeyLengthParm,
+    const char* serialNumberParm, const uint64_t serialNumberLengthParm,
+    ServiceAuthority& authorityParm, uint64_t& expirationTimeParm);
 
 /// @note This function will return failure if called with a V2 ACF
 CeLoginRc checkServiceAuthorityAcfIntegrityV1(
     const uint8_t* accessControlFileParm,
     const uint64_t accessControlFileLengthParm,
-    const uint64_t timeSinceUnixEpochInSecondsParm, const uint8_t* publicKeyParm,
-    const uint64_t publicKeyLengthParm, const char* serialNumberParm,
-    const uint64_t serialNumberLengthParm, ServiceAuthority& authorityParm,
-    uint64_t& expirationTimeParm);
+    const uint64_t timeSinceUnixEpochInSecondsParm,
+    const uint8_t* publicKeyParm, const uint64_t publicKeyLengthParm,
+    const char* serialNumberParm, const uint64_t serialNumberLengthParm,
+    ServiceAuthority& authorityParm, uint64_t& expirationTimeParm);
 
 /** @brief Extract metadata from an ACF
  *
- *  This function validates a few ACF fields, but only those minimally required to
- *  read certain metadata fields. Full validation of the ACF will need to use the
- *  upload interface.
+ *  This function validates a few ACF fields, but only those minimally required
+ * to read certain metadata fields. Full validation of the ACF will need to use
+ * the upload interface.
  *
  *  @param accessControlFileParm a pointer to the ASN1 encoded binary ACF
  *  @param accessControlFileLengthParm the byte length of the provided ACF
- *  @param timeSinceUnixEpochInSecondsParm the current system time encoded as a unix timestamp
- *  @param publicKeyParm a pointer to the public key used to vaidate the signature over the ACF
+ *  @param timeSinceUnixEpochInSecondsParm the current system time encoded as a
+ * unix timestamp
+ *  @param publicKeyParm a pointer to the public key used to vaidate the
+ * signature over the ACF
  *  @param publicKeyLengthParm the byte length of the provided public key
  *  @param serialNumberParm a pointer to the serial number of the current system
  *  @param serialNumberLengthParm the length of the provided serial number
- *  @param acfTypeParm the AcfType parsed from the provided file (e.g. service or admin reset)
+ *  @param acfTypeParm the AcfType parsed from the provided file (e.g. service
+ * or admin reset)
  *  @param expirationTimeParm the time at which this ACF expires
  *  @param expirationDateParm the formatted date at which this ACF expires
  *  @param versionParm the version field in the provided ACF
  *  @param hasReplayIdParm returns true if a replay ID is present in the ACF
  *
- *  @return A CeLoginRc indicating the result. CeLoginRc::Success indicates that the ACF is
- *          valid and the output fields have been populated with the relevant data from the
- *          file.
+ *  @return A CeLoginRc indicating the result. CeLoginRc::Success indicates that
+ * the ACF is valid and the output fields have been populated with the relevant
+ * data from the file.
  */
-CeLoginRc extractACFMetadataV2(
-    const uint8_t* accessControlFileParm,
-    const uint64_t accessControlFileLengthParm,
-    const uint64_t timeSinceUnixEpochInSecondsParm,
-    const uint8_t* publicKeyParm, const uint64_t publicKeyLengthParm,
-    const char* serialNumberParm, const uint64_t serialNumberLengthParm,
-    AcfType& acfTypeParm, uint64_t& expirationTimeParm,
-    CeLogin_Date& expirationDateParm,
-    AcfVersion& versionParm, bool& hasReplayIdParm);
+CeLoginRc extractACFMetadataV2(const uint8_t* accessControlFileParm,
+                               const uint64_t accessControlFileLengthParm,
+                               const uint64_t timeSinceUnixEpochInSecondsParm,
+                               const uint8_t* publicKeyParm,
+                               const uint64_t publicKeyLengthParm,
+                               const char* serialNumberParm,
+                               const uint64_t serialNumberLengthParm,
+                               AcfType& acfTypeParm,
+                               uint64_t& expirationTimeParm,
+                               CeLogin_Date& expirationDateParm,
+                               AcfVersion& versionParm, bool& hasReplayIdParm);
 
 #ifndef CELOGIN_POWERVM_TARGET
 
 /** @brief Validate an ACF file at upload time
  *
  *  This function decodes and verifies several aspects of the provided ACF.
- *  This includes verifying the signature over the ACF, ensuring the ACF is not expired,
- *  checking the serial number fields, and validating the replay ID, if it exists.
- *  Upon successful validation, the output fields are udpated with the values obtained
- *  from the ACF. THE CALLER MUST PERSIST THE RESULTING REPLAY ID ON SUCCESS.
+ *  This includes verifying the signature over the ACF, ensuring the ACF is not
+ * expired, checking the serial number fields, and validating the replay ID, if
+ * it exists. Upon successful validation, the output fields are udpated with the
+ * values obtained from the ACF. THE CALLER MUST PERSIST THE RESULTING REPLAY ID
+ * ON SUCCESS.
  *
  *  @param accessControlFileParm a pointer to the ASN1 encoded binary ACF
  *  @param accessControlFileLengthParm the byte length of the provided ACF
- *  @param timeSinceUnixEpochInSecondsParm the current system time encoded as a unix timestamp
- *  @param publicKeyParm a pointer to the public key used to vaidate the signature over the ACF
+ *  @param timeSinceUnixEpochInSecondsParm the current system time encoded as a
+ * unix timestamp
+ *  @param publicKeyParm a pointer to the public key used to vaidate the
+ * signature over the ACF
  *  @param publicKeyLengthParm the byte length of the provided public key
  *  @param serialNumberParm a pointer to the serial number of the current system
  *  @param serialNumberLengthParm the length of the provided serial number
- *  @param currentReplayIdParm the current replay ID persisted by the BMC. The very first time
- *                             this is called by a brand new system, the BMC may pass zero as input.
- *  @param updatedReplayIdParm the value the BMC is required to persist as the new replay ID if
- *                             the function call succeeds. This must be passed in as the
- *                             currentReplayIdParm the next time this interface is called.
- *  @param acfTypeParm the AcfType parsed from the provided file (e.g. service or admin reset)
+ *  @param currentReplayIdParm the current replay ID persisted by the BMC. The
+ * very first time this is called by a brand new system, the BMC may pass zero
+ * as input.
+ *  @param updatedReplayIdParm the value the BMC is required to persist as the
+ * new replay ID if the function call succeeds. This must be passed in as the
+ *                             currentReplayIdParm the next time this interface
+ * is called.
+ *  @param acfTypeParm the AcfType parsed from the provided file (e.g. service
+ * or admin reset)
  *  @param expirationTimeParm the time at which this ACF expires
  *
- *  @return A CeLoginRc indicating the result. CeLoginRc::Success indicates that the ACF is
- *          valid and the AcfUserFields has been populated with the relevant fields from the
- *          file. On success, the updatedReplayIdParm must be persisted and used on the next
- *          call to this interface.
+ *  @return A CeLoginRc indicating the result. CeLoginRc::Success indicates that
+ * the ACF is valid and the AcfUserFields has been populated with the relevant
+ * fields from the file. On success, the updatedReplayIdParm must be persisted
+ * and used on the next call to this interface.
  */
 CeLoginRc verifyACFForBMCUploadV2(
     const uint8_t* accessControlFileParm,
@@ -313,35 +339,38 @@ CeLoginRc verifyACFForBMCUploadV2(
 /** @brief Validate an ACF file and parse out the relevant fields
  *
  *  This function decodes and verifies several aspects of the provided ACF file.
- *  This includes verifying the signature over the ACF, ensuring the ACF is not expired,
- *  checking the serial number fields, verifying the correct password was entered (for
- *  a service ACF) and validating the replay ID was processed. Upon successful validation,
- *  a AcfUserFields object is returned with the fields relevant to the BMC. This interface
- *  assumes that the replay ID has already been validated and persisted when the ACF was
- *  uploaded.
+ *  This includes verifying the signature over the ACF, ensuring the ACF is not
+ * expired, checking the serial number fields, verifying the correct password
+ * was entered (for a service ACF) and validating the replay ID was processed.
+ * Upon successful validation, a AcfUserFields object is returned with the
+ * fields relevant to the BMC. This interface assumes that the replay ID has
+ * already been validated and persisted when the ACF was uploaded.
  *
  *  @param accessControlFileParm a pointer to the ASN1 encoded binary ACF
  *  @param accessControlFileLengthParm the byte length of the provided ACF
  *  @param passwordParm a pointer to the provided password
  *  @param passwordLengthParm the length of the provided password
- *  @param timeSinceUnixEpochInSecondsParm the current system time encoded as a unix timestamp
- *  @param publicKeyParm a pointer to the public key used to vaidate the signature over the ACF
+ *  @param timeSinceUnixEpochInSecondsParm the current system time encoded as a
+ * unix timestamp
+ *  @param publicKeyParm a pointer to the public key used to vaidate the
+ * signature over the ACF
  *  @param publicKeyLengthParm the byte length of the provided public key
  *  @param serialNumberParm a pointer to the serial number of the current system
  *  @param serialNumberLengthParm the length of the provided serial number
- *  @param currentReplayIdParm the current replay ID persisted by the BMC. Since the replay ID
- *                             is validated and stored at upload, this should always be equal
+ *  @param currentReplayIdParm the current replay ID persisted by the BMC. Since
+ * the replay ID is validated and stored at upload, this should always be equal
  *                             to the replay ID in the input ACF.
- *  @param userFieldsParm an instance of AcfUserFields which contains the data parsed from the
- *                        ACF on successful execution.
+ *  @param userFieldsParm an instance of AcfUserFields which contains the data
+ * parsed from the ACF on successful execution.
  *
- *  @return A CeLoginRc indicating the result. CeLoginRc::Success indicates that the ACF is
- *          valid and the AcfUserFields has been populated with the relevant fields.
+ *  @return A CeLoginRc indicating the result. CeLoginRc::Success indicates that
+ * the ACF is valid and the AcfUserFields has been populated with the relevant
+ * fields.
  */
 CeLoginRc checkAuthorizationAndGetAcfUserFieldsV2(
     const uint8_t* accessControlFileParm,
-    const uint64_t accessControlFileLengthParm,
-    const char* passwordParm, const uint64_t passwordLengthParm,
+    const uint64_t accessControlFileLengthParm, const char* passwordParm,
+    const uint64_t passwordLengthParm,
     const uint64_t timeSinceUnixEpochInSecondsParm,
     const uint8_t* publicKeyParm, const uint64_t publicKeyLengthParm,
     const char* serialNumberParm, const uint64_t serialNumberLengthParm,
@@ -351,18 +380,19 @@ CeLoginRc checkAuthorizationAndGetAcfUserFieldsV2(
 
 /** @brief PowerVM interface for checkAuthorizationAndGetAcfUserFieldsV2
  *
- *  The only difference here, is the presence of an output replay ID, which is required
- *  on the PowerVM interface, but not on the analogous BMC interface.
+ *  The only difference here, is the presence of an output replay ID, which is
+ * required on the PowerVM interface, but not on the analogous BMC interface.
  */
 CeLoginRc checkAuthorizationAndGetAcfUserFieldsV2ForPowerVM(
     const uint8_t* accessControlFileParm,
-    const uint64_t accessControlFileLengthParm,
-    const char* passwordParm, const uint64_t passwordLengthParm,
+    const uint64_t accessControlFileLengthParm, const char* passwordParm,
+    const uint64_t passwordLengthParm,
     const uint64_t timeSinceUnixEpochInSecondsParm,
     const uint8_t* publicKeyParm, const uint64_t publicKeyLengthParm,
     const char* serialNumberParm, const uint64_t serialNumberLengthParm,
     const uint64_t currentReplayIdParm, uint64_t& updatedReplayIdParm,
-    const bool failValidationIfReplayIdPresentParm, AcfUserFields& userFieldsParm);
+    const bool failValidationIfReplayIdPresentParm,
+    AcfUserFields& userFieldsParm);
 
 #endif /* CELOGIN_POWERVM_TARGET */
 

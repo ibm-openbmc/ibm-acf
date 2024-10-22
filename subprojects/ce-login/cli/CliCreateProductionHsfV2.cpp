@@ -377,10 +377,20 @@ CeLoginRc cli::createProductionHsfV2(int argc, char** argv)
 
             sCreateHsfArgsV2.mType = sArgs.mType;
             sCreateHsfArgsV2.mNoReplayId = sArgs.mNoReplayId;
-            sCreateHsfArgsV2.mScriptFile = sArgs.mScriptFile;
 
-            sRc = CeLogin::createCeLoginAcfV2Payload(sCreateHsfArgsV2, sJson,
-                                                     sHash);
+            bool sScriptFileReadSuccess = true;
+            if (sCreateHsfArgsV2.mType == "resourcedump" ||
+                sCreateHsfArgsV2.mType == "bmcshell")
+            {
+                sScriptFileReadSuccess = cli::readFileToString(
+                    sArgs.mScriptFile, sCreateHsfArgsV2.mScript);
+            }
+
+            if (sScriptFileReadSuccess && CeLoginRc::Success == sRc)
+            {
+                sRc = CeLogin::createCeLoginAcfV2Payload(sCreateHsfArgsV2,
+                                                         sJson, sHash);
+            }
         }
 
         if (CeLoginRc::Success == sRc)

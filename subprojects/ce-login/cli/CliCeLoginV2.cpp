@@ -115,23 +115,22 @@ CeLoginRc CeLogin::createCeLoginAcfV2Payload(
         json_object* sVersion = json_object_new_int(CeLoginVersion2);
         json_object* sMachinesArray = json_object_new_array();
 
-        json_object* sHashedPassword =
-            json_object_new_string(sPasswordHashHexString.c_str());
-        json_object* sSaltObj = json_object_new_string(sSaltHexString.c_str());
-        json_object* sIterationsObj = json_object_new_int(sIterations);
+        json_object* sHashedPassword = nullptr;
+        json_object* sSaltObj = nullptr;
+        json_object* sIterationsObj = nullptr;
         json_object* sExpirationDate =
             json_object_new_string(sArgsV1.mExpirationDate.c_str());
         json_object* sRequestId =
             json_object_new_string(sArgsV1.mRequestId.c_str());
-        json_object* sReplayIdJson = json_object_new_string(sReplayId.c_str());
+        json_object* sReplayIdJson = nullptr;
         json_object* sAdminAuthCodeJson = nullptr;
         json_object* sAcfTypeJson =
             json_object_new_string(sArgsV2.mType.c_str());
         json_object* sResourceDumpsJson = nullptr;
         json_object* sBmcShellJson = nullptr;
 
-        if (sJsonObj && sVersion && sMachinesArray && sHashedPassword &&
-            sExpirationDate && sRequestId && sReplayIdJson && sAcfTypeJson)
+        if (sJsonObj && sVersion && sMachinesArray && sExpirationDate &&
+            sRequestId && sAcfTypeJson)
         {
             for (int sIdx = 0; sIdx < sArgsV1.mMachines.size(); sIdx++)
             {
@@ -222,22 +221,26 @@ CeLoginRc CeLogin::createCeLoginAcfV2Payload(
             }
             else if (sIsResourceDump)
             {
-                if (!sArgsV2.mScriptFile.empty())
+                if (sArgsV2.mScript.length() <
+                    CeLogin::MaxAsciiScriptFileLength)
                 {
-                    std::ifstream sFh;
-                    sFh.open(sArgsV2.mScriptFile.c_str(),
-                             std::ios::in | std::ios::binary);
-                    if (sFh.is_open())
+                    std::string sResourceDumpBase64;
+                    sRc =
+                        cli::base64Encode(sArgsV2.mScript, sResourceDumpBase64);
+                    if (CeLoginRc::Success == sRc)
                     {
-                        std::ostringstream sResourceDumpStream;
-                        sResourceDumpStream << sFh.rdbuf();
-                        std::string sResourceDumpStr =
-                            sResourceDumpStream.str();
-                        sFh.close();
                         sResourceDumpsJson =
-                            json_object_new_string(sResourceDumpStr.c_str());
-                        json_object_object_add(sJsonObj, JsonName_ResourceDumps,
-                                               sResourceDumpsJson);
+                            json_object_new_string(sResourceDumpBase64.c_str());
+                        if (sResourceDumpsJson)
+                        {
+                            json_object_object_add(sJsonObj,
+                                                   JsonName_ResourceDumps,
+                                                   sResourceDumpsJson);
+                        }
+                        else
+                        {
+                            sRc = CeLoginRc::Failure;
+                        }
                     }
                 }
                 else
@@ -247,21 +250,25 @@ CeLoginRc CeLogin::createCeLoginAcfV2Payload(
             }
             else if (sIsBmcShell)
             {
-                if (!sArgsV2.mScriptFile.empty())
+                if (sArgsV2.mScript.length() <
+                    CeLogin::MaxAsciiScriptFileLength)
                 {
-                    std::ifstream sFh;
-                    sFh.open(sArgsV2.mScriptFile.c_str(),
-                             std::ios::in | std::ios::binary);
-                    if (sFh.is_open())
+                    std::string sBmcShellBase64;
+                    sRc = cli::base64Encode(sArgsV2.mScript, sBmcShellBase64);
+                    if (CeLoginRc::Success == sRc)
                     {
-                        std::ostringstream sBmcShellStream;
-                        sBmcShellStream << sFh.rdbuf();
-                        std::string sBmcShellStr = sBmcShellStream.str();
-                        sFh.close();
                         sBmcShellJson =
-                            json_object_new_string(sBmcShellStr.c_str());
-                        json_object_object_add(
-                            sJsonObj, JsonName_BmcShellScript, sBmcShellJson);
+                            json_object_new_string(sBmcShellBase64.c_str());
+                        if (sBmcShellJson)
+                        {
+                            json_object_object_add(sJsonObj,
+                                                   JsonName_BmcShellScript,
+                                                   sBmcShellJson);
+                        }
+                        else
+                        {
+                            sRc = CeLoginRc::Failure;
+                        }
                     }
                 }
                 else
@@ -271,19 +278,40 @@ CeLoginRc CeLogin::createCeLoginAcfV2Payload(
             }
             else // service type
             {
-                json_object_object_add(sJsonObj, JsonName_HashedAuthCode,
-                                       sHashedPassword);
-                json_object_object_add(sJsonObj, JsonName_Salt, sSaltObj);
-                json_object_object_add(sJsonObj, JsonName_Iterations,
-                                       sIterationsObj);
+                sHashedPassword =
+                    json_object_new_string(sPasswordHashHexString.c_str());
+                sSaltObj = json_object_new_string(sSaltHexString.c_str());
+                sIterationsObj = json_object_new_int(sIterations);
+
+                if (sHashedPassword && sSaltObj && sIterationsObj)
+                {
+                    json_object_object_add(sJsonObj, JsonName_HashedAuthCode,
+                                           sHashedPassword);
+
+                    json_object_object_add(sJsonObj, JsonName_Salt, sSaltObj);
+                    json_object_object_add(sJsonObj, JsonName_Iterations,
+                                           sIterationsObj);
+                }
+                else
+                {
+                    sRc = CeLoginRc::Failure;
+                }
             }
 
             json_object_object_add(sJsonObj, JsonName_RequestId, sRequestId);
 
             if (!sArgsV2.mNoReplayId)
             {
-                json_object_object_add(sJsonObj, JsonName_ReplayId,
-                                       sReplayIdJson);
+                sReplayIdJson = json_object_new_string(sReplayId.c_str());
+                if (sReplayIdJson)
+                {
+                    json_object_object_add(sJsonObj, JsonName_ReplayId,
+                                           sReplayIdJson);
+                }
+                else
+                {
+                    sRc = CeLoginRc::Failure;
+                }
             }
 
             json_object_object_add(sJsonObj, JsonName_Expiration,
@@ -305,66 +333,6 @@ CeLoginRc CeLogin::createCeLoginAcfV2Payload(
         else
         {
             sRc = CeLoginRc::Failure;
-        }
-
-        if (CeLoginRc::Success != sRc)
-        {
-            // deallocate memory
-            if (sJsonObj)
-            {
-                json_object_put(sJsonObj);
-                sJsonObj = NULL;
-            }
-            if (sVersion)
-            {
-                json_object_put(sVersion);
-                sVersion = NULL;
-            }
-            if (sMachinesArray)
-            {
-                json_object_put(sMachinesArray);
-                sMachinesArray = NULL;
-            }
-            if (sHashedPassword)
-            {
-                json_object_put(sHashedPassword);
-                sHashedPassword = NULL;
-            }
-            if (sExpirationDate)
-            {
-                json_object_put(sExpirationDate);
-                sExpirationDate = NULL;
-            }
-            if (sRequestId)
-            {
-                json_object_put(sRequestId);
-                sRequestId = NULL;
-            }
-            if (sReplayIdJson)
-            {
-                json_object_put(sReplayIdJson);
-                sReplayIdJson = NULL;
-            }
-            if (sAdminAuthCodeJson)
-            {
-                json_object_put(sAdminAuthCodeJson);
-                sAdminAuthCodeJson = NULL;
-            }
-            if (sResourceDumpsJson)
-            {
-                json_object_put(sResourceDumpsJson);
-                sResourceDumpsJson = NULL;
-            }
-            if (sBmcShellJson)
-            {
-                json_object_put(sBmcShellJson);
-                sBmcShellJson = NULL;
-            }
-            if (sAcfTypeJson)
-            {
-                json_object_put(sAcfTypeJson);
-                sAcfTypeJson = NULL;
-            }
         }
 
         if (sJsonObj)

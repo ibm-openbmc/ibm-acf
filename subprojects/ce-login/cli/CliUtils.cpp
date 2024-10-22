@@ -5,6 +5,7 @@
 #include <CeLogin.h>
 #include <getopt.h>
 #include <inttypes.h>
+#include <openssl/evp.h>
 #include <openssl/sha.h>
 #include <string.h>
 
@@ -111,18 +112,17 @@ bool cli::generateEtcPasswdHash(const char* pwParm, const std::size_t pwLenParm,
 
     // -6 corresponds to SHA512
     sCmd << "openssl passwd -6"
-         << " -salt " << saltParm
-         << " " << pwParm;
+         << " -salt " << saltParm << " " << pwParm;
 
     FILE* sPipe = popen(sCmd.str().c_str(), "r");
-    if(nullptr != sPipe)
+    if (nullptr != sPipe)
     {
         const std::size_t sReadBufferSize = 1024;
         char sReadBuffer[sReadBufferSize];
 
-        while(!feof(sPipe))
+        while (!feof(sPipe))
         {
-            if(nullptr != fgets(sReadBuffer, sReadBufferSize, sPipe))
+            if (nullptr != fgets(sReadBuffer, sReadBufferSize, sPipe))
             {
                 sStdOut += sReadBuffer;
             }
@@ -132,7 +132,7 @@ bool cli::generateEtcPasswdHash(const char* pwParm, const std::size_t pwLenParm,
         sSuccess = (EXIT_SUCCESS == sRc);
     }
 
-    if(sSuccess)
+    if (sSuccess)
     {
         sStdOut.erase(std::remove(sStdOut.begin(), sStdOut.end(), '\n'),
                       sStdOut.end());
@@ -311,4 +311,82 @@ void cli::printHelp(const char* cmdParm, const char* subCmdParm,
         }
         std::cout << " | " << descriptionParm[i] << std::endl;
     }
+}
+
+CeLogin::CeLoginRc cli::base64Encode(const std::string& stringToEncodeParm,
+                                     std::string& base64EncodedStringParm)
+{
+    CeLogin::CeLoginRc sRc = CeLogin::CeLoginRc::Success;
+
+    // Resize the output string to the calculated encoded length
+    const size_t sCalculatedEncodedLen =
+        4 * ((stringToEncodeParm.length() + 2) / 3);
+    base64EncodedStringParm.resize(sCalculatedEncodedLen);
+
+    // Perform Base64 encoding
+    const int sEncodeRc = EVP_EncodeBlock(
+        reinterpret_cast<unsigned char*>(&base64EncodedStringParm[0]),
+        reinterpret_cast<const unsigned char*>(stringToEncodeParm.data()),
+        stringToEncodeParm.length());
+    // EVP_EncodeBlock returns -1 on failure, otherwise, resize the string
+    // object to the actual string length of the encoded data
+    if (sEncodeRc < 0)
+    {
+        sRc = CeLogin::CeLoginRc::Failure;
+        base64EncodedStringParm.clear();
+    }
+    else
+    {
+        base64EncodedStringParm.resize(strlen(base64EncodedStringParm.c_str()));
+    }
+    return sRc;
+}
+
+CeLogin::CeLoginRc cli::base64Decode(const std::string& base64StringToDecode,
+                                     std::string& outputDecodedAsciiString)
+{
+    CeLogin::CeLoginRc sRc = CeLogin::CeLoginRc::Success;
+    if (base64StringToDecode.length() % 4)
+    {
+        sRc = CeLogin::CeLoginRc::Failure;
+    }
+    else
+    {
+        // Calculate the maximum size of the decoded output string.
+        const size_t sMaxDecodedLength =
+            3 * (base64StringToDecode.length() / 4);
+        outputDecodedAsciiString.resize(sMaxDecodedLength);
+
+        const int sDecodeRc = EVP_DecodeBlock(
+            reinterpret_cast<unsigned char*>(&outputDecodedAsciiString[0]),
+            reinterpret_cast<const unsigned char*>(base64StringToDecode.data()),
+            base64StringToDecode.length());
+        // EVP_DecodeBlock returns -1 on failure, otherwise, resize the string
+        // object to the actual string length of the decoded data
+        if (sDecodeRc < 0)
+        {
+            sRc = CeLogin::CeLoginRc::Failure;
+            outputDecodedAsciiString.clear();
+        }
+        else
+        {
+            outputDecodedAsciiString.resize(
+                strlen(outputDecodedAsciiString.c_str()));
+        }
+    }
+    return sRc;
+}
+
+bool cli::readFileToString(const std::string& fileName,
+                           std::string& fileContents)
+{
+    std::vector<uint8_t> sFileContentsBinary;
+    bool sSuccess = readBinaryFile(fileName, sFileContentsBinary);
+    if (sSuccess)
+    {
+        fileContents = std::string((char*)sFileContentsBinary.data(),
+                                   (char*)sFileContentsBinary.data() +
+                                       sFileContentsBinary.size());
+    }
+    return sSuccess;
 }

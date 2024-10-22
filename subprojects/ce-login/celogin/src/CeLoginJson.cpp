@@ -3,9 +3,13 @@
 
 #include "CeLoginUtil.h"
 #include "JsmnUtils.h"
+#include "cli/CliUtils.h"
 
 #include <CeLogin.h>
 #include <string.h>
+
+#include <iostream>
+#include <string>
 
 using namespace CeLogin;
 
@@ -77,6 +81,17 @@ static CeLoginRc ParseAdminResetFields(
     const JsmnUtils::JsmnState& jsmnStateParm, const AcfVersion versionParm,
     const char* serialNumberParm, const uint64_t serialNumberLengthParm,
     CeLoginJsonData& decodedJsonParm);
+
+static CeLoginRc ParseResourceDumpFields(
+    const JsmnUtils::JsmnState& jsmnStateParm, const AcfVersion versionParm,
+    const char* serialNumberParm, const uint64_t serialNumberLengthParm,
+    CeLoginJsonData& decodedJsonParm);
+
+static CeLoginRc ParseBmcShellFields(const JsmnUtils::JsmnState& jsmnStateParm,
+                                     const AcfVersion versionParm,
+                                     const char* serialNumberParm,
+                                     const uint64_t serialNumberLengthParm,
+                                     CeLoginJsonData& decodedJsonParm);
 
 CeLoginRc CeLogin::decodeJson(const char* jsonStringParm,
                               const uint64_t jsonStringLengthParm,
@@ -228,6 +243,18 @@ CeLoginRc CeLogin::decodeJson(const char* jsonStringParm,
                 {
                     sAcfType = AcfType_AdminReset;
                 }
+                else if (JsmnUtils::SafeJsmnStringCompare(
+                             sTypeStr, JsonValue_AcfTypeResourceDump,
+                             strlen(JsonValue_AcfTypeResourceDump)))
+                {
+                    sAcfType = AcfType_ResourceDump;
+                }
+                else if (JsmnUtils::SafeJsmnStringCompare(
+                             sTypeStr, JsonValue_AcfTypeBmcShell,
+                             strlen(JsonValue_AcfTypeBmcShell)))
+                {
+                    sAcfType = AcfType_BmcShell;
+                }
                 else
                 {
                     sRc = CeLoginRc::UnsupportedAcfType;
@@ -261,18 +288,41 @@ CeLoginRc CeLogin::decodeJson(const char* jsonStringParm,
         }
     }
 
-    // Parse AdminReset ACF type
-    if (CeLoginRc::Success == sRc && AcfType_AdminReset == sAcfType)
+    if (CeLoginRc::Success == sRc)
     {
-        sRc = ParseAdminResetFields(sJsmnState, sVersion, serialNumberParm,
-                                    serialNumberLengthParm, decodedJsonParm);
-    }
-
-    // Parse Service ACF type
-    if (CeLoginRc::Success == sRc && AcfType_Service == sAcfType)
-    {
-        sRc = ParseServiceLoginFields(sJsmnState, sVersion, serialNumberParm,
-                                      serialNumberLengthParm, decodedJsonParm);
+        switch (sAcfType)
+        {
+            case AcfType_AdminReset:
+            {
+                sRc = ParseAdminResetFields(
+                    sJsmnState, sVersion, serialNumberParm,
+                    serialNumberLengthParm, decodedJsonParm);
+                break;
+            }
+            case AcfType_Service:
+            {
+                sRc = ParseServiceLoginFields(
+                    sJsmnState, sVersion, serialNumberParm,
+                    serialNumberLengthParm, decodedJsonParm);
+                break;
+            }
+            case AcfType_ResourceDump:
+            {
+                sRc = ParseResourceDumpFields(
+                    sJsmnState, sVersion, serialNumberParm,
+                    serialNumberLengthParm, decodedJsonParm);
+                break;
+            }
+            case AcfType_BmcShell:
+            {
+                sRc = ParseBmcShellFields(
+                    sJsmnState, sVersion, serialNumberParm,
+                    serialNumberLengthParm, decodedJsonParm);
+                break;
+            }
+            default:
+                break;
+        }
     }
 
     return sRc;
@@ -714,6 +764,180 @@ CeLoginRc ParseAdminResetFields(const JsmnUtils::JsmnState& jsmnStateParm,
             memcpy(decodedJsonParm.mAdminAuthCode, sAdminAuthStr.mCharArray,
                    sAdminAuthStr.mCharLength);
             decodedJsonParm.mAdminAuthCodeLength = sAdminAuthStr.mCharLength;
+        }
+        else
+        {
+            sRc = CeLoginRc::Failure;
+        }
+    }
+
+    return sRc;
+}
+
+CeLoginRc ParseResourceDumpFields(const JsmnUtils::JsmnState& jsmnStateParm,
+                                  const AcfVersion versionParm,
+                                  const char* serialNumberParm,
+                                  const uint64_t serialNumberLengthParm,
+                                  CeLoginJsonData& decodedJsonParm)
+{
+    CeLoginRc sRc = CeLoginRc::Success;
+    JsmnUtils::JsmnUtilRc sJsmnRc = JsmnUtils::Success;
+
+    const uint64_t sRootObjectTokenIdx = 0;
+
+    uint64_t sMachinesIdx = 0;
+    uint64_t sExpirationIdx = 0;
+    uint64_t sResourceDumpIdx = 0;
+
+    if (JsmnUtils::Success == sJsmnRc)
+    {
+        sJsmnRc = JsmnUtils::ObjectGetValueByKey(
+            jsmnStateParm, sRootObjectTokenIdx, JsonName_Machines,
+            strlen(JsonName_Machines), sMachinesIdx);
+    }
+
+    if (JsmnUtils::Success == sJsmnRc)
+    {
+        sJsmnRc = JsmnUtils::ObjectGetValueByKey(
+            jsmnStateParm, sRootObjectTokenIdx, JsonName_Expiration,
+            strlen(JsonName_Expiration), sExpirationIdx);
+    }
+
+    if (JsmnUtils::Success == sJsmnRc)
+    {
+        sJsmnRc = JsmnUtils::ObjectGetValueByKey(
+            jsmnStateParm, sRootObjectTokenIdx, JsonName_ResourceDumps,
+            strlen(JsonName_ResourceDumps), sResourceDumpIdx);
+    }
+
+    // Parsing complete, start using CeLogin return codes
+    sRc = CeLoginRc(CeLoginRc::JsmnUtils, sJsmnRc);
+
+    // verify machines
+    if (CeLoginRc::Success == sRc)
+    {
+        ServiceAuthority sIgnoredAuth;
+        sRc = ParseAuthorityFromMachineArrayToken(
+            jsmnStateParm, sMachinesIdx, serialNumberParm,
+            serialNumberLengthParm, sIgnoredAuth);
+    }
+
+    // get expiration date
+    if (CeLoginRc::Success == sRc)
+    {
+        sRc = ParseDateFromToken(jsmnStateParm, sExpirationIdx,
+                                 decodedJsonParm.mExpirationDate);
+    }
+
+    // Copy out resourcedump field
+    if (CeLoginRc::Success == sRc)
+    {
+        JsmnUtils::JsmnString sResourceDumpStr =
+            jsmnStateParm.getString(sResourceDumpIdx);
+        std::string sBase64EncResourceDump(sResourceDumpStr.mCharArray,
+                                           sResourceDumpStr.mCharLength);
+        std::string sResourceDumpAscii;
+        sRc = cli::base64Decode(sBase64EncResourceDump, sResourceDumpAscii);
+        if (CeLoginRc::Success == sRc)
+        {
+            if (sResourceDumpAscii.length() < MaxAsciiScriptFileLength)
+            {
+                memcpy(decodedJsonParm.mAsciiScriptFile,
+                       sResourceDumpAscii.data(), sResourceDumpAscii.length());
+                decodedJsonParm.mAsciiScriptFileLength =
+                    sResourceDumpAscii.length();
+            }
+            else
+            {
+                sRc = CeLoginRc::Failure;
+            }
+        }
+        else
+        {
+            sRc = CeLoginRc::Failure;
+        }
+    }
+
+    return sRc;
+}
+
+CeLoginRc ParseBmcShellFields(const JsmnUtils::JsmnState& jsmnStateParm,
+                              const AcfVersion versionParm,
+                              const char* serialNumberParm,
+                              const uint64_t serialNumberLengthParm,
+                              CeLoginJsonData& decodedJsonParm)
+{
+    CeLoginRc sRc = CeLoginRc::Success;
+    JsmnUtils::JsmnUtilRc sJsmnRc = JsmnUtils::Success;
+
+    const uint64_t sRootObjectTokenIdx = 0;
+
+    uint64_t sMachinesIdx = 0;
+    uint64_t sExpirationIdx = 0;
+    uint64_t sBmcShellIdx = 0;
+
+    if (JsmnUtils::Success == sJsmnRc)
+    {
+        sJsmnRc = JsmnUtils::ObjectGetValueByKey(
+            jsmnStateParm, sRootObjectTokenIdx, JsonName_Machines,
+            strlen(JsonName_Machines), sMachinesIdx);
+    }
+
+    if (JsmnUtils::Success == sJsmnRc)
+    {
+        sJsmnRc = JsmnUtils::ObjectGetValueByKey(
+            jsmnStateParm, sRootObjectTokenIdx, JsonName_Expiration,
+            strlen(JsonName_Expiration), sExpirationIdx);
+    }
+
+    if (JsmnUtils::Success == sJsmnRc)
+    {
+        sJsmnRc = JsmnUtils::ObjectGetValueByKey(
+            jsmnStateParm, sRootObjectTokenIdx, JsonName_BmcShellScript,
+            strlen(JsonName_BmcShellScript), sBmcShellIdx);
+    }
+
+    // Parsing complete, start using CeLogin return codes
+    sRc = CeLoginRc(CeLoginRc::JsmnUtils, sJsmnRc);
+
+    // verify machines
+    if (CeLoginRc::Success == sRc)
+    {
+        ServiceAuthority sIgnoredAuth;
+        sRc = ParseAuthorityFromMachineArrayToken(
+            jsmnStateParm, sMachinesIdx, serialNumberParm,
+            serialNumberLengthParm, sIgnoredAuth);
+    }
+
+    // get expiration date
+    if (CeLoginRc::Success == sRc)
+    {
+        sRc = ParseDateFromToken(jsmnStateParm, sExpirationIdx,
+                                 decodedJsonParm.mExpirationDate);
+    }
+
+    // Copy out bmcshell field
+    if (CeLoginRc::Success == sRc)
+    {
+        JsmnUtils::JsmnString sBmcShellStr =
+            jsmnStateParm.getString(sBmcShellIdx);
+        std::string sBase64EncBmcShell(sBmcShellStr.mCharArray,
+                                       sBmcShellStr.mCharLength);
+        std::string sAsciiBmcShell;
+        sRc = cli::base64Decode(sBase64EncBmcShell, sAsciiBmcShell);
+        if (CeLoginRc::Success == sRc)
+        {
+            if (sAsciiBmcShell.length() < MaxAsciiScriptFileLength)
+            {
+                memcpy(decodedJsonParm.mAsciiScriptFile, sAsciiBmcShell.data(),
+                       sAsciiBmcShell.length());
+                decodedJsonParm.mAsciiScriptFileLength =
+                    sAsciiBmcShell.length();
+            }
+            else
+            {
+                sRc = CeLoginRc::Failure;
+            }
         }
         else
         {

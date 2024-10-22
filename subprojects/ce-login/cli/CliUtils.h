@@ -1,10 +1,10 @@
+#include "CliTypes.h"
+
 #include <inttypes.h>
 #include <json-c/json.h>
 
 #include <string>
 #include <vector>
-
-#include "CliTypes.h"
 
 #ifndef _CLIUTILS_H
 #define _CLIUTILS_H
@@ -12,7 +12,8 @@
 namespace CeLogin
 {
 struct Machine;
-};
+struct CeLoginRc;
+}; // namespace CeLogin
 
 struct option;
 
@@ -20,6 +21,8 @@ namespace cli
 {
 bool readBinaryFile(const std::string fileNameParm,
                     std::vector<uint8_t>& bufferParm);
+
+bool readFileToString(const std::string& fileName, std::string& fileContents);
 
 bool writeBinaryFile(const std::string fileNameParm, const uint8_t* bufferParm,
                      const uint64_t bufferLengthParm);
@@ -48,6 +51,12 @@ void printHelp(const char* cmdParm, const char* subCmdParm,
                const std::string& introParagraphParm,
                const option optionsParm[], std::string descriptionParm[],
                const uint64_t numOptionsParm);
+
+CeLogin::CeLoginRc base64Encode(const std::string& stringToEncodeParm,
+                                std::string& base64EncodedStringParm);
+
+CeLogin::CeLoginRc base64Decode(const std::string& base64StringToDecode,
+                                std::string& outputDecodedAsciiString);
 
 } // namespace cli
 
