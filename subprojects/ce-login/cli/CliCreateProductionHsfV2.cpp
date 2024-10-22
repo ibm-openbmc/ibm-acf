@@ -288,17 +288,13 @@ bool validateArgs(const Arguments& args, Operation& operationParm,
             }
         }
 
-        if (sIsValidArgs && (CeLogin::AcfType_AdminReset == acfTypeParm ||
-                             CeLogin::AcfType_ResourceDump == acfTypeParm ||
-                             CeLogin::AcfType_BmcShell == acfTypeParm))
+        if (sIsValidArgs && (CeLogin::AcfType_AdminReset == acfTypeParm))
         {
             if (sNoReplayId)
             {
-#ifndef TOLERATE_TARGETED_ACF_REPLAY
+#ifndef TOLERATE_ADMIN_RESET_REPLAY
                 sIsValidArgs = false;
-                cerr
-                    << "Admin reset, resource dump, or bmc shell type requires replay ID"
-                    << endl;
+                cerr << "Admin reset type requires replay ID" << endl;
 #endif
             }
         }
