@@ -221,7 +221,7 @@ bool validateArgs(const Arguments& args, Operation& operationParm,
     bool sIsValidArgs = false;
 
     operationParm = Operation_Invalid;
-    acfTypeParm = CeLogin::AcfType_Service;
+    acfTypeParm = CeLogin::getAcfTypeFromString(args.mType);
 
     // Check on each of the operations
 
@@ -229,13 +229,16 @@ bool validateArgs(const Arguments& args, Operation& operationParm,
     const bool sIsExpiration = !args.mExpirationDate.empty();
     const bool sIsComment = !args.mComment.empty();
     const bool sIsPassword = !args.mPasswordFile.empty();
+    const bool sIsPasswordRequired =
+        (CeLogin::AcfType_BmcShell != acfTypeParm &&
+         CeLogin::AcfType_ResourceDump != acfTypeParm);
     const bool sIsJson = !args.mJsonPath.empty();
     const bool sIsDigest = !args.mJsonDigestPath.empty();
     const bool sIsSignature = !args.mSignaturePath.empty();
     const bool sIsAcf = !args.mOutputFile.empty();
     const bool sNoReplayId = args.mNoReplayId;
 
-    if (sIsMachine && sIsExpiration && !sIsComment && sIsPassword &&
+    if (sIsMachine && sIsExpiration && !sIsComment && (sIsPassword || !sIsPasswordRequired) &&
         sIsJson /* && sIsDigest */ && !sIsSignature && !sIsAcf)
     {
         sIsValidArgs = true;
@@ -254,28 +257,7 @@ bool validateArgs(const Arguments& args, Operation& operationParm,
 
     if (sIsValidArgs)
     {
-        const bool sIsServiceType = args.mType == "service";
-        const bool sIsAdminResetType = args.mType == "adminreset";
-        const bool sIsResourceDumpType = args.mType == "resourcedump";
-        const bool sIsBmcShellType = args.mType == "bmcshell";
-
-        if (sIsServiceType)
-        {
-            acfTypeParm = CeLogin::AcfType_Service;
-        }
-        else if (sIsAdminResetType)
-        {
-            acfTypeParm = CeLogin::AcfType_AdminReset;
-        }
-        else if (sIsResourceDumpType)
-        {
-            acfTypeParm = CeLogin::AcfType_ResourceDump;
-        }
-        else if (sIsBmcShellType)
-        {
-            acfTypeParm = CeLogin::AcfType_BmcShell;
-        }
-        else
+        if(acfTypeParm == CeLogin::AcfType_Invalid)
         {
             sIsValidArgs = false;
             if (args.mType.empty())
@@ -298,6 +280,12 @@ bool validateArgs(const Arguments& args, Operation& operationParm,
 #endif
             }
         }
+    }
+
+    if(!sIsValidArgs)
+    {
+        operationParm = Operation_Invalid;
+        acfTypeParm = CeLogin::AcfType_Invalid;
     }
 
     return sIsValidArgs;
@@ -337,6 +325,9 @@ CeLoginRc cli::createProductionHsfV2(int argc, char** argv)
     {
         string sJson;
         vector<uint8_t> sHash;
+        const bool sIsPasswordRequired =
+            (CeLogin::AcfType_BmcShell != sAcfType &&
+             CeLogin::AcfType_ResourceDump != sAcfType);
 
         char* sPasswordPtr = (char*)OPENSSL_secure_zalloc(Prod_PasswordLength +
                                                           1); // +1 for '\0'
@@ -345,7 +336,7 @@ CeLoginRc cli::createProductionHsfV2(int argc, char** argv)
             sRc = CeLoginRc::Failure;
         }
 
-        if (CeLoginRc::Success == sRc)
+        if (CeLoginRc::Success == sRc && sIsPasswordRequired)
         {
             sRc = CeLogin::generateRandomPassword(sPasswordPtr,
                                                   Prod_PasswordLength);
@@ -378,8 +369,25 @@ CeLoginRc cli::createProductionHsfV2(int argc, char** argv)
             if (sCreateHsfArgsV2.mType == "resourcedump" ||
                 sCreateHsfArgsV2.mType == "bmcshell")
             {
-                sScriptFileReadSuccess = cli::readFileToString(
-                    sArgs.mScriptFile, sCreateHsfArgsV2.mScript);
+                size_t sScriptFileSize = 0;
+                sScriptFileReadSuccess =
+                    cli::getFileSize(sArgs.mScriptFile, sScriptFileSize);
+                if (!sScriptFileReadSuccess)
+                {
+                    std::cout << "Could not open " << sArgs.mScriptFile
+                              << " for read." << std::endl;
+                }
+                else if (sScriptFileSize > CeLogin::MaxAsciiScriptFileLength)
+                {
+                    std::cout << "Invalid script file size: " << sScriptFileSize
+                              << std::endl;
+                    sScriptFileReadSuccess = false;
+                }
+                else
+                {
+                    sScriptFileReadSuccess = cli::readFileToString(
+                        sArgs.mScriptFile, sCreateHsfArgsV2.mScript);
+                }
             }
 
             if (sScriptFileReadSuccess && CeLoginRc::Success == sRc)
@@ -417,16 +425,20 @@ CeLoginRc cli::createProductionHsfV2(int argc, char** argv)
                 }
             }
 
-            if (writeBinaryFile(sArgs.mPasswordFile,
-                                (const uint8_t*)sCreateHsfArgsV1.mPasswordPtr,
-                                sCreateHsfArgsV1.mPasswordLength))
+            if (sIsPasswordRequired)
             {
-                cout << "Wrote: " << sArgs.mPasswordFile << endl;
-            }
-            else
-            {
-                cout << "Error writing generated password file" << endl;
-                sRc = CeLoginRc::Failure;
+                if (writeBinaryFile(
+                        sArgs.mPasswordFile,
+                        (const uint8_t*)sCreateHsfArgsV1.mPasswordPtr,
+                        sCreateHsfArgsV1.mPasswordLength))
+                {
+                    cout << "Wrote: " << sArgs.mPasswordFile << endl;
+                }
+                else
+                {
+                    cout << "Error writing generated password file" << endl;
+                    sRc = CeLoginRc::Failure;
+                }
             }
         }
 

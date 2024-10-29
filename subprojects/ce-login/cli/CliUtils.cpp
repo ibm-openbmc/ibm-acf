@@ -9,6 +9,7 @@
 #include <openssl/sha.h>
 #include <string.h>
 
+#include <sys/stat.h>
 #include <algorithm>
 #include <cstdio>
 #include <ctime>
@@ -17,6 +18,21 @@
 #include <sstream>
 #include <string>
 #include <vector>
+
+bool cli::getFileSize(const std::string& fileNameParm, size_t& fileSizeParm)
+{
+    struct stat sStatFile;
+    fileSizeParm = 0;
+
+    // stat returns 0 on success
+    if(0 == stat(fileNameParm.c_str(), &sStatFile))
+    {
+        fileSizeParm = sStatFile.st_size;
+        return true;
+    }
+
+    return false;
+}
 
 bool cli::readBinaryFile(const std::string fileNameParm,
                          std::vector<uint8_t>& bufferParm)

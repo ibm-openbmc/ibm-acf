@@ -840,7 +840,7 @@ CeLoginRc ParseResourceDumpFields(const JsmnUtils::JsmnState& jsmnStateParm,
         sRc = cli::base64Decode(sBase64EncResourceDump, sResourceDumpAscii);
         if (CeLoginRc::Success == sRc)
         {
-            if (sResourceDumpAscii.length() < MaxAsciiScriptFileLength)
+            if (sResourceDumpAscii.length() <= MaxAsciiScriptFileLength)
             {
                 memcpy(decodedJsonParm.mAsciiScriptFile,
                        sResourceDumpAscii.data(), sResourceDumpAscii.length());
@@ -927,7 +927,7 @@ CeLoginRc ParseBmcShellFields(const JsmnUtils::JsmnState& jsmnStateParm,
         sRc = cli::base64Decode(sBase64EncBmcShell, sAsciiBmcShell);
         if (CeLoginRc::Success == sRc)
         {
-            if (sAsciiBmcShell.length() < MaxAsciiScriptFileLength)
+            if (sAsciiBmcShell.length() <= MaxAsciiScriptFileLength)
             {
                 memcpy(decodedJsonParm.mAsciiScriptFile, sAsciiBmcShell.data(),
                        sAsciiBmcShell.length());

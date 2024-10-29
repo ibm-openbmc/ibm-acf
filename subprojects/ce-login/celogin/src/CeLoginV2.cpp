@@ -488,7 +488,7 @@ static CeLoginRc checkAuthorizationAndGetAcfUserFieldsV2Internal(
         else if (CeLogin::AcfType_ResourceDump == sJsonData->mType)
         {
             if (sJsonData->mAsciiScriptFileLength == 0 ||
-                sJsonData->mAsciiScriptFileLength >=
+                sJsonData->mAsciiScriptFileLength >
                     CeLogin::MaxAsciiScriptFileLength)
             {
                 sRc = CeLoginRc::Failure;
@@ -506,7 +506,7 @@ static CeLoginRc checkAuthorizationAndGetAcfUserFieldsV2Internal(
         else if (CeLogin::AcfType_BmcShell == sJsonData->mType)
         {
             if (sJsonData->mAsciiScriptFileLength == 0 ||
-                sJsonData->mAsciiScriptFileLength >=
+                sJsonData->mAsciiScriptFileLength >
                     CeLogin::MaxAsciiScriptFileLength)
             {
                 sRc = CeLoginRc::Failure;

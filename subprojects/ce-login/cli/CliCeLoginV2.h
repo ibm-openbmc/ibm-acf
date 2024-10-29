@@ -70,6 +70,7 @@ CeLoginRc
                                 const std::vector<uint8_t>& publicKeyParm,
                                 CeLoginDecryptedHsfArgsV2& decodedHsfParm);
 
+AcfType getAcfTypeFromString(const std::string& typeStrParm);
 }; // namespace CeLogin
 
 #endif

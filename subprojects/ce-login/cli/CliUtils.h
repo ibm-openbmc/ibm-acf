@@ -19,6 +19,9 @@ struct option;
 
 namespace cli
 {
+
+bool getFileSize(const std::string& fileNameParm, size_t& fileSizeParm);
+
 bool readBinaryFile(const std::string fileNameParm,
                     std::vector<uint8_t>& bufferParm);
 
