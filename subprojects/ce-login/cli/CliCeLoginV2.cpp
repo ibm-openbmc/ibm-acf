@@ -23,13 +23,14 @@
 
 #include <chrono>
 #include <ctime>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <vector>
 
-using CeLogin::CeLoginRc;
 using CeLogin::CeLoginCreateHsfArgsV1;
 using CeLogin::CeLoginCreateHsfArgsV2;
+using CeLogin::CeLoginRc;
 
 CeLoginRc CeLogin::createCeLoginAcfV2Payload(
     const CeLoginCreateHsfArgsV2& argsParm, std::string& generatedJsonParm,
@@ -43,7 +44,8 @@ CeLoginRc CeLogin::createCeLoginAcfV2Payload(
     std::string sPasswordHashHexString;
     std::string sSaltHexString;
     std::string sReplayId = cli::generateReplayId();
-    const bool sIsAdminReset = ("adminreset" == sArgsV2.mType);
+
+    const AcfType sAcfType = CeLogin::getAcfTypeFromString(sArgsV2.mType);
 
     std::vector<uint8_t> sHashedAuthCode(sArgsV1.mHashedAuthCodeLength);
     std::vector<uint8_t> sSalt(sArgsV1.mSaltLength, 0);
@@ -112,20 +114,21 @@ CeLoginRc CeLogin::createCeLoginAcfV2Payload(
         json_object* sVersion = json_object_new_int(CeLoginVersion2);
         json_object* sMachinesArray = json_object_new_array();
 
-        json_object* sHashedPassword =
-            json_object_new_string(sPasswordHashHexString.c_str());
-        json_object* sSaltObj = json_object_new_string(sSaltHexString.c_str());
-        json_object* sIterationsObj = json_object_new_int(sIterations);
+        json_object* sHashedPassword = nullptr;
+        json_object* sSaltObj = nullptr;
+        json_object* sIterationsObj = nullptr;
         json_object* sExpirationDate =
             json_object_new_string(sArgsV1.mExpirationDate.c_str());
         json_object* sRequestId =
             json_object_new_string(sArgsV1.mRequestId.c_str());
-        json_object* sReplayIdJson = json_object_new_string(sReplayId.c_str());
+        json_object* sReplayIdJson = nullptr;
         json_object* sAdminAuthCodeJson = nullptr;
-        json_object* sAcfTypeJson = json_object_new_string(sArgsV2.mType.c_str());
+        json_object* sAcfTypeJson =
+            json_object_new_string(sArgsV2.mType.c_str());
+        json_object* sScriptFileJson = nullptr;
 
-        if (sJsonObj && sVersion && sMachinesArray && sHashedPassword &&
-            sExpirationDate && sRequestId && sReplayIdJson && sAcfTypeJson)
+        if (sJsonObj && sVersion && sMachinesArray && sExpirationDate &&
+            sRequestId && sAcfTypeJson)
         {
             for (int sIdx = 0; sIdx < sArgsV1.mMachines.size(); sIdx++)
             {
@@ -185,39 +188,107 @@ CeLoginRc CeLogin::createCeLoginAcfV2Payload(
             json_object_object_add(sJsonObj, JsonName_Type, sAcfTypeJson);
             json_object_object_add(sJsonObj, JsonName_Machines, sMachinesArray);
 
-            if(sIsAdminReset)
+            if (AcfType_AdminReset == sAcfType)
             {
                 std::string sAdminAuthCode;
-                if(cli::generateEtcPasswdHash(sArgsV1.mPasswordPtr, sArgsV1.mPasswordLength,
-                                              sSaltHexString, sAdminAuthCode))
+                if (cli::generateEtcPasswdHash(sArgsV1.mPasswordPtr,
+                                               sArgsV1.mPasswordLength,
+                                               sSaltHexString, sAdminAuthCode))
                 {
-                    std::vector<uint8_t> sAuthCodeBytes(sAdminAuthCode.begin(), sAdminAuthCode.end());
-                    std::string sHexEncodedAuthCode = cli::getHexStringFromBinary(sAuthCodeBytes);
+                    std::vector<uint8_t> sAuthCodeBytes(sAdminAuthCode.begin(),
+                                                        sAdminAuthCode.end());
+                    std::string sHexEncodedAuthCode =
+                        cli::getHexStringFromBinary(sAuthCodeBytes);
 
-                    sAdminAuthCodeJson = json_object_new_string(sHexEncodedAuthCode.c_str());
-                    if(NULL != sAdminAuthCodeJson)
+                    sAdminAuthCodeJson =
+                        json_object_new_string(sHexEncodedAuthCode.c_str());
+                    if (NULL != sAdminAuthCodeJson)
                     {
-                        json_object_object_add(sJsonObj, JsonName_AdminAuthCode, sAdminAuthCodeJson);
+                        json_object_object_add(sJsonObj, JsonName_AdminAuthCode,
+                                               sAdminAuthCodeJson);
                     }
-                    else { sRc = CeLoginRc::Failure; }
+                    else
+                    {
+                        sRc = CeLoginRc::Failure;
+                    }
                 }
-                else { sRc = CeLoginRc::Failure; }
+                else
+                {
+                    sRc = CeLoginRc::Failure;
+                }
+            }
+            else if (AcfType_ResourceDump == sAcfType ||
+                     AcfType_BmcShell == sAcfType)
+            {
+                const char* sJsonName = (sAcfType == AcfType_ResourceDump)
+                                            ? JsonName_ResourceDumps
+                                            : JsonName_BmcShellScript;
+                if (sArgsV2.mScript.length() <=
+                    CeLogin::MaxAsciiScriptFileLength)
+                {
+                    std::string sBase64EncodedScript;
+                    sRc = cli::base64Encode(sArgsV2.mScript,
+                                            sBase64EncodedScript);
+                    if (CeLoginRc::Success == sRc)
+                    {
+                        sScriptFileJson = json_object_new_string(
+                            sBase64EncodedScript.c_str());
+                        if (sScriptFileJson)
+                        {
+                            json_object_object_add(sJsonObj, sJsonName,
+                                                   sScriptFileJson);
+                        }
+                        else
+                        {
+                            sRc = CeLoginRc::Failure;
+                        }
+                    }
+                }
+                else
+                {
+                    sRc = CeLoginRc::Failure;
+                }
             }
             else // service type
             {
-                json_object_object_add(sJsonObj, JsonName_HashedAuthCode, sHashedPassword);
-                json_object_object_add(sJsonObj, JsonName_Salt, sSaltObj);
-                json_object_object_add(sJsonObj, JsonName_Iterations, sIterationsObj);
+                sHashedPassword =
+                    json_object_new_string(sPasswordHashHexString.c_str());
+                sSaltObj = json_object_new_string(sSaltHexString.c_str());
+                sIterationsObj = json_object_new_int(sIterations);
+
+                if (sHashedPassword && sSaltObj && sIterationsObj)
+                {
+                    json_object_object_add(sJsonObj, JsonName_HashedAuthCode,
+                                           sHashedPassword);
+
+                    json_object_object_add(sJsonObj, JsonName_Salt, sSaltObj);
+                    json_object_object_add(sJsonObj, JsonName_Iterations,
+                                           sIterationsObj);
+                }
+                else
+                {
+                    sRc = CeLoginRc::Failure;
+                }
             }
 
             json_object_object_add(sJsonObj, JsonName_RequestId, sRequestId);
 
-            if(!sArgsV2.mNoReplayId)
+            if (!sArgsV2.mNoReplayId)
             {
-                json_object_object_add(sJsonObj, JsonName_ReplayId, sReplayIdJson);
+                sReplayIdJson = json_object_new_string(sReplayId.c_str());
+                if (sReplayIdJson)
+                {
+                    json_object_object_add(sJsonObj, JsonName_ReplayId,
+                                           sReplayIdJson);
+                }
+                else
+                {
+                    sRc = CeLoginRc::Failure;
+                }
             }
 
-            json_object_object_add(sJsonObj, JsonName_Expiration, sExpirationDate);
+            json_object_object_add(sJsonObj, JsonName_Expiration,
+                                   sExpirationDate);
 
             // When the json object is free'd this string will also be free'd
             const char* sGeneratedJsonString =
@@ -235,56 +306,6 @@ CeLoginRc CeLogin::createCeLoginAcfV2Payload(
         else
         {
             sRc = CeLoginRc::Failure;
-        }
-
-        if (CeLoginRc::Success != sRc)
-        {
-            // deallocate memory
-            if (sJsonObj)
-            {
-                json_object_put(sJsonObj);
-                sJsonObj = NULL;
-            }
-            if (sVersion)
-            {
-                json_object_put(sVersion);
-                sVersion = NULL;
-            }
-            if (sMachinesArray)
-            {
-                json_object_put(sMachinesArray);
-                sMachinesArray = NULL;
-            }
-            if (sHashedPassword)
-            {
-                json_object_put(sHashedPassword);
-                sHashedPassword = NULL;
-            }
-            if (sExpirationDate)
-            {
-                json_object_put(sExpirationDate);
-                sExpirationDate = NULL;
-            }
-            if (sRequestId)
-            {
-                json_object_put(sRequestId);
-                sRequestId = NULL;
-            }
-            if(sReplayIdJson)
-            {
-                json_object_put(sReplayIdJson);
-                sReplayIdJson = NULL;
-            }
-            if(sAdminAuthCodeJson)
-            {
-                json_object_put(sAdminAuthCodeJson);
-                sAdminAuthCodeJson = NULL;
-            }
-            if(sAcfTypeJson)
-            {
-                json_object_put(sAcfTypeJson);
-                sAcfTypeJson = NULL;
-            }
         }
 
         if (sJsonObj)
@@ -665,4 +686,26 @@ CeLogin::CeLoginRc CeLogin::decodeAndVerifyCeLoginHsfV2(
         CELoginSequenceV1_free(sDecodedAsn);
     }
     return sRc;
+}
+
+CeLogin::AcfType CeLogin::getAcfTypeFromString(const std::string& typeStrParm) 
+{
+    AcfType sType = AcfType_Invalid;
+    if(typeStrParm == "adminreset")
+    {
+        sType = AcfType_AdminReset; 
+    }
+    else if(typeStrParm == "service")
+    {
+        sType = AcfType_Service; 
+    }
+    else if(typeStrParm == "bmcshell")
+    {
+        sType = AcfType_BmcShell; 
+    }
+    else if(typeStrParm == "resourcedump")
+    {
+        sType = AcfType_ResourceDump; 
+    }
+    return sType;
 }

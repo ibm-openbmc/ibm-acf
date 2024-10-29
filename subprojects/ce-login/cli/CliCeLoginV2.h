@@ -1,7 +1,7 @@
 
-#include <CliTypes.h>
 #include <CeLogin.h>
 #include <CliCeLoginV1.h>
+#include <CliTypes.h>
 
 #include <string>
 #include <vector>
@@ -11,25 +11,26 @@
 
 namespace CeLogin
 {
-    /*
+/*
 struct DecodedMachine
 {
-    std::string mSerialNumber;
-    std::string mFrameworkEc;
+std::string mSerialNumber;
+std::string mFrameworkEc;
 };
 
 enum PasswordHashAlgorithm
 {
-    PasswordHash_Production,
-    PasswordHash_SHA512,
+PasswordHash_Production,
+PasswordHash_SHA512,
 };
 */
 
 struct CeLoginCreateHsfArgsV2
 {
-    CeLoginCreateHsfArgsV1  mV1Args;
-    bool                    mNoReplayId;
-    std::string             mType;
+    CeLoginCreateHsfArgsV1 mV1Args;
+    bool mNoReplayId;
+    std::string mType;
+    std::string mScript;
 };
 
 struct CeLoginDecryptedHsfArgsV2
@@ -69,6 +70,7 @@ CeLoginRc
                                 const std::vector<uint8_t>& publicKeyParm,
                                 CeLoginDecryptedHsfArgsV2& decodedHsfParm);
 
+AcfType getAcfTypeFromString(const std::string& typeStrParm);
 }; // namespace CeLogin
 
 #endif

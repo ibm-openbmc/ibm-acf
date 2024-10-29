@@ -173,24 +173,24 @@ CeLogin::CeLoginRc cli::verifyHsf(int argc, char** argv)
             if (readBinaryFile(sArgs.mPublicKeyFileName, sPublicKey))
             {
                 std::time_t sTime = std::time(NULL);
-		CeLogin::AcfUserFields sUserFields;
+                CeLogin::AcfUserFields sUserFields;
 
 #ifndef CELOGIN_POWERVM_TARGET
-		sRc = CeLogin::checkAuthorizationAndGetAcfUserFieldsV2(
-			sHsf.data(), sHsf.size(),
-			sArgs.mPassword.data(), sArgs.mPassword.size(),
-			sTime, sPublicKey.data(), sPublicKey.size(),
-			sArgs.mSerialNumber.data(), sArgs.mSerialNumber.size(),
-    			0, sUserFields);
+                sRc = CeLogin::checkAuthorizationAndGetAcfUserFieldsV2(
+                    sHsf.data(), sHsf.size(), sArgs.mPassword.data(),
+                    sArgs.mPassword.size(), sTime, sPublicKey.data(),
+                    sPublicKey.size(), sArgs.mSerialNumber.data(),
+                    sArgs.mSerialNumber.size(), 0, sUserFields);
 #else
-	        uint64_t sReplayId = 0;
+                uint64_t sReplayId = 0;
                 const bool sFailIfReplayIdPresent = false;
-                sRc = CeLogin::checkAuthorizationAndGetAcfUserFieldsV2ForPowerVM(
-			sHsf.data(), sHsf.size(),
-			sArgs.mPassword.data(), sArgs.mPassword.size(),
-			sTime, sPublicKey.data(), sPublicKey.size(),
-			sArgs.mSerialNumber.data(), sArgs.mSerialNumber.size(),
-    			0, sReplayId, sFailIfReplayIdPresent, sUserFields);
+                sRc =
+                    CeLogin::checkAuthorizationAndGetAcfUserFieldsV2ForPowerVM(
+                        sHsf.data(), sHsf.size(), sArgs.mPassword.data(),
+                        sArgs.mPassword.size(), sTime, sPublicKey.data(),
+                        sPublicKey.size(), sArgs.mSerialNumber.data(),
+                        sArgs.mSerialNumber.size(), 0, sReplayId,
+                        sFailIfReplayIdPresent, sUserFields);
 #endif
                 if (CeLoginRc::Success == sRc)
                 {
@@ -216,14 +216,34 @@ CeLogin::CeLoginRc cli::verifyHsf(int argc, char** argv)
                     std::cout << "Error: " << sRc << std::endl;
                 }
 
-		if(sUserFields.mType == AcfType_AdminReset)
-		{
+                if (sUserFields.mType == AcfType_AdminReset)
+                {
                     std::cout << "Type: AdminReset" << std::endl;
-                    std::cout << "Hash: " << sUserFields.mTypeSpecificFields.mAdminResetFields.mAdminAuthCode << std::endl;
-		}
-		else if(sUserFields.mType == AcfType_Service)
-		{
-                    switch (sUserFields.mTypeSpecificFields.mServiceFields.mAuth)
+                    std::cout << "Hash: "
+                              << sUserFields.mTypeSpecificFields
+                                     .mAdminResetFields.mAdminAuthCode
+                              << std::endl;
+                }
+                else if (sUserFields.mType == AcfType_ResourceDump)
+                {
+                    std::cout << "Type: ResourceDump" << std::endl;
+                    std::cout << "Script: "
+                              << sUserFields.mTypeSpecificFields
+                                     .mResourceDumpFields.mResourceDump
+                              << std::endl;
+                }
+                else if (sUserFields.mType == AcfType_BmcShell)
+                {
+                    std::cout << "Type: BmcShell" << std::endl;
+                    std::cout << "Script: "
+                              << sUserFields.mTypeSpecificFields.mBmcShellFields
+                                     .mBmcShell
+                              << std::endl;
+                }
+                else if (sUserFields.mType == AcfType_Service)
+                {
+                    switch (
+                        sUserFields.mTypeSpecificFields.mServiceFields.mAuth)
                     {
                         case CeLogin::ServiceAuth_None:
                         {
@@ -251,8 +271,9 @@ CeLogin::CeLoginRc cli::verifyHsf(int argc, char** argv)
                             break;
                         }
                     }
-		}
-                std::cout << "Expiration (UNIX): " << sUserFields.mExpirationTime << std::endl;
+                }
+                std::cout << "Expiration (UNIX): "
+                          << sUserFields.mExpirationTime << std::endl;
             }
             else
             {
