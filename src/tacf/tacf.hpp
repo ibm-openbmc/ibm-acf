@@ -39,6 +39,7 @@ constexpr auto serialNumberEmpty = "       ";
 constexpr auto serialNumberUnset = "UNSET";
 
 constexpr auto adminName = "admin";
+constexpr auto serviceName = "service";
 
 constexpr auto privilegeAdmin = "priv-admin";
 constexpr auto privilegeUser  = "priv-user";
@@ -371,7 +372,15 @@ class Tacf : TargetedAcf
             return tacfFail;
         }
 
-        return writeFile(acf, size, acfFilePath);
+        int rc = writeFile(acf, size, acfFilePath);
+
+        // Enable the service user account using dbus interface.
+        TacfDbus().enableUser(serviceName);
+
+        // Unlock service user account using dbus interface.
+        TacfDbus().unlockUser(serviceName);
+
+        return rc;
     }
 
     /**
