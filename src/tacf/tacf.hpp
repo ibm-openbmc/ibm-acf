@@ -215,7 +215,7 @@ class Tacf : TargetedAcf
 
         // Process ACF using auth provider with each key.
         TacfCelogin authProvider;
-        int authRc = CeLogin::CeLoginRc::Failure;
+        int retcode = CeLogin::CeLoginRc::SignatureNotValid;
 
         for (auto pathname : keyring)
         {
@@ -226,7 +226,7 @@ class Tacf : TargetedAcf
                 continue;
             }
 
-            int authRc;
+            int authRc = CeLogin::CeLoginRc::Failure;
             uint64_t expireTime = 0;
 
             // If action is verify.
@@ -265,9 +265,16 @@ class Tacf : TargetedAcf
                 // Return success.
                 return tacfSuccess;
             }
+
+            // The best return code may not be the last signature checked.
+            // SignatureNotValid is less interesting than other failures.
+            if (authRc != CeLogin::CeLoginRc::SignatureNotValid)
+            {
+                retcode = authRc;
+            }
         }
         // Or return error code.
-        return authRc;
+        return retcode;
     }
 
     /**
