@@ -484,8 +484,8 @@ CeLogin::CeLoginRc CeLogin::getServiceAuthorityFromFrameworkEc(
             authParm = ServiceAuth_CE;
         }
         else if (frameworkEcLengthParm == strlen(FrameworkEc_P11_Dev) &&
-            0 == memcmp(frameworkEcParm, FrameworkEc_P11_Dev,
-                        frameworkEcLengthParm))
+                 0 == memcmp(frameworkEcParm, FrameworkEc_P11_Dev,
+                             frameworkEcLengthParm))
         {
             authParm = ServiceAuth_Dev;
         }
@@ -503,8 +503,10 @@ CeLogin::CeLoginRc CeLogin::getServiceAuthorityFromFrameworkEc(
     return sRc;
 }
 
-CeLogin::CeLoginRc CeLogin::createSignature(EVP_PKEY* privateKeyParm, const EVP_MD* mdParm,
-                                            const uint8_t* digestParm, size_t digestParmSize,
+CeLogin::CeLoginRc CeLogin::createSignature(EVP_PKEY* privateKeyParm,
+                                            const EVP_MD* mdParm,
+                                            const uint8_t* digestParm,
+                                            size_t digestParmSize,
                                             uint8_t* generatedSignatureParm,
                                             size_t& signatureSizeParm)
 {
@@ -531,16 +533,14 @@ CeLogin::CeLoginRc CeLogin::createSignature(EVP_PKEY* privateKeyParm, const EVP_
     {
         // This call calculates the final signature length
         size_t sCalculatedSignatureSize = 0;
-        sResult =
-            EVP_PKEY_sign(sCtx, NULL, &sCalculatedSignatureSize,
-                            digestParm, digestParmSize);
-        if ((1 == sResult) &&
-            (sCalculatedSignatureSize == signatureSizeParm))
+        sResult = EVP_PKEY_sign(sCtx, NULL, &sCalculatedSignatureSize,
+                                digestParm, digestParmSize);
+        if ((1 == sResult) && (sCalculatedSignatureSize == signatureSizeParm))
         {
             // This call creates the signature
-            sResult = EVP_PKEY_sign(
-                sCtx, generatedSignatureParm, &signatureSizeParm,
-                digestParm, digestParmSize);
+            sResult =
+                EVP_PKEY_sign(sCtx, generatedSignatureParm, &signatureSizeParm,
+                              digestParm, digestParmSize);
         }
         else
         {
@@ -558,9 +558,12 @@ CeLogin::CeLoginRc CeLogin::createSignature(EVP_PKEY* privateKeyParm, const EVP_
     return sRc;
 }
 
-CeLogin::CeLoginRc CeLogin::verifySignature(EVP_PKEY* publicKeyParm, const EVP_MD* mdTypeParm, 
-                                            const uint8_t* signatureParm, size_t signatureLengthParm,
-                                            const uint8_t* digestParm, size_t digestLengthParm)
+CeLogin::CeLoginRc CeLogin::verifySignature(EVP_PKEY* publicKeyParm,
+                                            const EVP_MD* mdTypeParm,
+                                            const uint8_t* signatureParm,
+                                            size_t signatureLengthParm,
+                                            const uint8_t* digestParm,
+                                            size_t digestLengthParm)
 {
     CeLoginRc sRc = CeLoginRc::Success;
     int sVerifyResult = 1;
@@ -584,8 +587,7 @@ CeLogin::CeLoginRc CeLogin::verifySignature(EVP_PKEY* publicKeyParm, const EVP_M
     if (1 == sVerifyResult)
     {
         sVerifyResult =
-            EVP_PKEY_verify(sCtx, signatureParm,
-                            signatureLengthParm,
+            EVP_PKEY_verify(sCtx, signatureParm, signatureLengthParm,
                             digestParm, digestLengthParm);
     }
     if (1 != sVerifyResult)
@@ -596,5 +598,58 @@ CeLogin::CeLoginRc CeLogin::verifySignature(EVP_PKEY* publicKeyParm, const EVP_M
     {
         EVP_PKEY_CTX_free(sCtx);
     }
+    return sRc;
+}
+
+CeLogin::CeLoginRc CeLogin::base64Decode(const char* inputParm,
+                                const size_t inputLenParm,
+                                uint8_t* decodedOutputParm,
+                                const size_t decodedOutputLenParm,
+                                size_t& numDecodedBytesParm)
+{
+    CeLoginRc sRc = CeLoginRc::Success;
+
+    // Find expected length of decoded binary output, must be divisible by 4
+    const size_t sExpectedOutputLen = (inputLenParm / 4) * 3;
+
+    // Check for bad input parameters. Require sufficient space in
+    // decodedOutputParm to handle any padding.
+    if (sExpectedOutputLen > decodedOutputLenParm || 0 != inputLenParm % 4 ||
+        NULL == inputParm || NULL == decodedOutputParm)
+    {
+        // Output buffer length should not be less than what is required for
+        // decode Input length should be divisible by 4
+        sRc = CeLoginRc::Failure;
+    }
+    else
+    {
+        const size_t sNumBytesDecoded = EVP_DecodeBlock(
+            decodedOutputParm, (unsigned char*)inputParm, inputLenParm);
+        if (sNumBytesDecoded != sExpectedOutputLen)
+        {
+            // Unexpected error, number of decoded bytes should match what is
+            // expected
+            sRc = CeLoginRc::Failure;
+        }
+        else
+        {
+            // Determine the number of "extra" bytes due to padding. There can
+            // be at most two "=", 1 "=" indicates one extra byte of data 2 "="
+            // indicates two extra bytes of data
+            if ('=' == inputParm[inputLenParm - 2])
+            {
+                numDecodedBytesParm = sNumBytesDecoded - 2;
+            }
+            else if ('=' == inputParm[inputLenParm - 1])
+            {
+                numDecodedBytesParm = sNumBytesDecoded - 1;
+            }
+            else
+            {
+                numDecodedBytesParm = sNumBytesDecoded;
+            }
+        }
+    }
+
     return sRc;
 }

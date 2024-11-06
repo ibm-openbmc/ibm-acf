@@ -103,6 +103,13 @@ CeLoginRc createSignature(EVP_PKEY* privateKeyParm, const EVP_MD* mdParm,
                           const uint8_t* digestParm, size_t digestParmLength,
                           uint8_t* generatedSignatureParm,
                           size_t& signatureSizeParm);
+
+CeLoginRc base64Decode(const char*  inputParm,
+                       const size_t inputLenParm,
+                       uint8_t*     decodedOutputParm,
+                       const size_t decodedOutputLenParm,
+                       size_t&      numDecodedBytesParm);
+
 }; // namespace CeLogin
 
 #endif

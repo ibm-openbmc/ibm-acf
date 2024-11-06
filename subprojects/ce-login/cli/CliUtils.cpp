@@ -358,41 +358,6 @@ CeLogin::CeLoginRc cli::base64Encode(const std::string& stringToEncodeParm,
     return sRc;
 }
 
-CeLogin::CeLoginRc cli::base64Decode(const std::string& base64StringToDecode,
-                                     std::string& outputDecodedAsciiString)
-{
-    CeLogin::CeLoginRc sRc = CeLogin::CeLoginRc::Success;
-    if (base64StringToDecode.length() % 4)
-    {
-        sRc = CeLogin::CeLoginRc::Failure;
-    }
-    else
-    {
-        // Calculate the maximum size of the decoded output string.
-        const size_t sMaxDecodedLength =
-            3 * (base64StringToDecode.length() / 4);
-        outputDecodedAsciiString.resize(sMaxDecodedLength);
-
-        const int sDecodeRc = EVP_DecodeBlock(
-            reinterpret_cast<unsigned char*>(&outputDecodedAsciiString[0]),
-            reinterpret_cast<const unsigned char*>(base64StringToDecode.data()),
-            base64StringToDecode.length());
-        // EVP_DecodeBlock returns -1 on failure, otherwise, resize the string
-        // object to the actual string length of the decoded data
-        if (sDecodeRc < 0)
-        {
-            sRc = CeLogin::CeLoginRc::Failure;
-            outputDecodedAsciiString.clear();
-        }
-        else
-        {
-            outputDecodedAsciiString.resize(
-                strlen(outputDecodedAsciiString.c_str()));
-        }
-    }
-    return sRc;
-}
-
 bool cli::readFileToString(const std::string& fileName,
                            std::string& fileContents)
 {

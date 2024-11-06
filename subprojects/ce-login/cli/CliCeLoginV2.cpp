@@ -54,7 +54,7 @@ CeLoginRc CeLogin::createCeLoginAcfV2Payload(
 
     if (sArgsV1.mMachines.empty() || !sArgsV1.mPasswordPtr ||
         0 == sArgsV1.mPasswordLength || sArgsV1.mExpirationDate.empty() ||
-        sArgsV1.mRequestId.empty() || sArgsV2.mType.empty())
+        sArgsV1.mRequestId.empty() || sArgsV2.mType.empty() || AcfType_Invalid == sAcfType)
     {
         sRc = CeLoginRc::Failure;
         std::cout << "ERROR line " << __LINE__ << std::endl;

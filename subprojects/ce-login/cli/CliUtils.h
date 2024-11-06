@@ -58,9 +58,6 @@ void printHelp(const char* cmdParm, const char* subCmdParm,
 CeLogin::CeLoginRc base64Encode(const std::string& stringToEncodeParm,
                                 std::string& base64EncodedStringParm);
 
-CeLogin::CeLoginRc base64Decode(const std::string& base64StringToDecode,
-                                std::string& outputDecodedAsciiString);
-
 } // namespace cli
 
 #endif
