@@ -46,11 +46,15 @@ struct Arguments
     string mJsonDigestPath;
     string mType;
     string mScriptFile;
+    uint64_t mBmcTimeout;
+    bool mIssueBmcDump;
     bool mNoReplayId;
     bool mVerbose;
     bool mHelp;
 
-    Arguments() : mNoReplayId(false), mVerbose(false), mHelp(false)
+    Arguments() :
+        mNoReplayId(false), mVerbose(false), mHelp(false), mBmcTimeout(60),
+        mIssueBmcDump(false)
 
     {}
 };
@@ -68,6 +72,8 @@ enum OptOptions
     AcfType,
     NoReplayId,
     ScriptFile,
+    BmcTimeout,
+    IssueBmcDump,
     Verbose,
     Help,
     NOptOptions
@@ -85,6 +91,8 @@ struct option long_options[NOptOptions + 1] = {
     {"type", required_argument, NULL, 't'},
     {"noReplayId", no_argument, NULL, 'n'},
     {"scriptFile", required_argument, NULL, 'f'},
+    {"bmcTimeout", required_argument, NULL, 'b'},
+    {"issueBmcDump", no_argument, NULL, 'i'},
     {"verbose", no_argument, NULL, 'v'},
     {"help", no_argument, NULL, 'h'},
     {0, 0, 0, 0}};
@@ -101,6 +109,8 @@ string options_description[NOptOptions] = {
     "<service,adminreset,resourcedump,bmcshell>",
     "Exclude the replay ID from the ACF",
     "File containing an ASCII-encoded BMC shellscript or resource dump string",
+    "Timeout in seconds for the provided BMC shell script to run",
+    "Tell the BMC to issue a BMC dump along with running the ACF",
     "Help",
     "Verbose"};
 
@@ -204,6 +214,14 @@ void parseArgs(int argc, char** argv, struct Arguments& args)
         {
             args.mScriptFile = optarg;
         }
+        else if (c == long_options[BmcTimeout].val)
+        {
+            args.mBmcTimeout = std::stoul(std::string(optarg));
+        }
+        else if (c == long_options[IssueBmcDump].val)
+        {
+            args.mIssueBmcDump = true;
+        }
         else if (c == long_options[Help].val)
         {
             args.mHelp = true;
@@ -238,8 +256,9 @@ bool validateArgs(const Arguments& args, Operation& operationParm,
     const bool sIsAcf = !args.mOutputFile.empty();
     const bool sNoReplayId = args.mNoReplayId;
 
-    if (sIsMachine && sIsExpiration && !sIsComment && (sIsPassword || !sIsPasswordRequired) &&
-        sIsJson /* && sIsDigest */ && !sIsSignature && !sIsAcf)
+    if (sIsMachine && sIsExpiration && !sIsComment &&
+        (sIsPassword || !sIsPasswordRequired) && sIsJson /* && sIsDigest */ &&
+        !sIsSignature && !sIsAcf)
     {
         sIsValidArgs = true;
         operationParm = CreateJsonAndDigest;
@@ -257,7 +276,7 @@ bool validateArgs(const Arguments& args, Operation& operationParm,
 
     if (sIsValidArgs)
     {
-        if(acfTypeParm == CeLogin::AcfType_Invalid)
+        if (acfTypeParm == CeLogin::AcfType_Invalid)
         {
             sIsValidArgs = false;
             if (args.mType.empty())
@@ -282,7 +301,7 @@ bool validateArgs(const Arguments& args, Operation& operationParm,
         }
     }
 
-    if(!sIsValidArgs)
+    if (!sIsValidArgs)
     {
         operationParm = Operation_Invalid;
         acfTypeParm = CeLogin::AcfType_Invalid;
@@ -388,6 +407,12 @@ CeLoginRc cli::createProductionHsfV2(int argc, char** argv)
                     sScriptFileReadSuccess = cli::readFileToString(
                         sArgs.mScriptFile, sCreateHsfArgsV2.mScript);
                 }
+            }
+
+            if (sCreateHsfArgsV2.mType == "bmcshell")
+            {
+                sCreateHsfArgsV2.mBmcTimeout = sArgs.mBmcTimeout;
+                sCreateHsfArgsV2.mIssueBmcDump = sArgs.mIssueBmcDump;
             }
 
             if (sScriptFileReadSuccess && CeLoginRc::Success == sRc)

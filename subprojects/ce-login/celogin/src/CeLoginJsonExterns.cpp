@@ -19,6 +19,8 @@ const char* JsonName_ReplayId = "replayid";
 const char* JsonName_AdminAuthCode = "adminAuthCode";
 const char* JsonName_ResourceDumps = "resourcedumps";
 const char* JsonName_BmcShellScript = "shellscript";
+const char* JsonName_BmcTimeoutVal = "executionTimeoutInSec";
+const char* JsonName_IssueBmcDump = "issueDumpOnCompletion";
 const char* JsonName_Type = "type";
 
 const char* JsonValue_AcfTypeService = "service";

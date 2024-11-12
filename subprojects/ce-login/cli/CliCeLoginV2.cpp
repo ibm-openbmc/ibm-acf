@@ -54,7 +54,8 @@ CeLoginRc CeLogin::createCeLoginAcfV2Payload(
 
     if (sArgsV1.mMachines.empty() || !sArgsV1.mPasswordPtr ||
         0 == sArgsV1.mPasswordLength || sArgsV1.mExpirationDate.empty() ||
-        sArgsV1.mRequestId.empty() || sArgsV2.mType.empty() || AcfType_Invalid == sAcfType)
+        sArgsV1.mRequestId.empty() || sArgsV2.mType.empty() ||
+        AcfType_Invalid == sAcfType)
     {
         sRc = CeLoginRc::Failure;
         std::cout << "ERROR line " << __LINE__ << std::endl;
@@ -126,6 +127,8 @@ CeLoginRc CeLogin::createCeLoginAcfV2Payload(
         json_object* sAcfTypeJson =
             json_object_new_string(sArgsV2.mType.c_str());
         json_object* sScriptFileJson = nullptr;
+        json_object* sBmcTimeoutJson = nullptr;
+        json_object* sIssueBmcDumpJson = nullptr;
 
         if (sJsonObj && sVersion && sMachinesArray && sExpirationDate &&
             sRequestId && sAcfTypeJson)
@@ -247,6 +250,26 @@ CeLoginRc CeLogin::createCeLoginAcfV2Payload(
                 else
                 {
                     sRc = CeLoginRc::Failure;
+                }
+
+                if (sRc.isSuccess() && AcfType_BmcShell == sAcfType)
+                {
+                    sBmcTimeoutJson = json_object_new_int(sArgsV2.mBmcTimeout);
+                    const char* sIssueBmcDumpStr =
+                        (sArgsV2.mIssueBmcDump) ? "yes" : "no";
+                    sIssueBmcDumpJson =
+                        json_object_new_string(sIssueBmcDumpStr);
+                    if (sBmcTimeoutJson && sIssueBmcDumpJson)
+                    {
+                        json_object_object_add(sJsonObj, JsonName_BmcTimeoutVal,
+                                               sBmcTimeoutJson);
+                        json_object_object_add(sJsonObj, JsonName_IssueBmcDump,
+                                               sIssueBmcDumpJson);
+                    }
+                    else
+                    {
+                        sRc = CeLoginRc::Failure;
+                    }
                 }
             }
             else // service type
@@ -688,24 +711,24 @@ CeLogin::CeLoginRc CeLogin::decodeAndVerifyCeLoginHsfV2(
     return sRc;
 }
 
-CeLogin::AcfType CeLogin::getAcfTypeFromString(const std::string& typeStrParm) 
+CeLogin::AcfType CeLogin::getAcfTypeFromString(const std::string& typeStrParm)
 {
     AcfType sType = AcfType_Invalid;
-    if(typeStrParm == "adminreset")
+    if (typeStrParm == "adminreset")
     {
-        sType = AcfType_AdminReset; 
+        sType = AcfType_AdminReset;
     }
-    else if(typeStrParm == "service")
+    else if (typeStrParm == "service")
     {
-        sType = AcfType_Service; 
+        sType = AcfType_Service;
     }
-    else if(typeStrParm == "bmcshell")
+    else if (typeStrParm == "bmcshell")
     {
-        sType = AcfType_BmcShell; 
+        sType = AcfType_BmcShell;
     }
-    else if(typeStrParm == "resourcedump")
+    else if (typeStrParm == "resourcedump")
     {
-        sType = AcfType_ResourceDump; 
+        sType = AcfType_ResourceDump;
     }
     return sType;
 }

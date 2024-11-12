@@ -239,6 +239,14 @@ CeLogin::CeLoginRc cli::verifyHsf(int argc, char** argv)
                               << sUserFields.mTypeSpecificFields.mBmcShellFields
                                      .mBmcShell
                               << std::endl;
+                    std::cout << "Timeout: "
+                              << sUserFields.mTypeSpecificFields.mBmcShellFields
+                                     .mBmcTimeout
+                              << std::endl;
+                    std::cout << "IssueDump: "
+                              << sUserFields.mTypeSpecificFields.mBmcShellFields
+                                     .mIssueBmcDump
+                              << std::endl;
                 }
                 else if (sUserFields.mType == AcfType_Service)
                 {

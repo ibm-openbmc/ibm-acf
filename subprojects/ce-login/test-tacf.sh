@@ -20,7 +20,7 @@ echo Test Bmc Shell ACF
 
 echo -n "bmcshell command1; bmcshell command2;" > script.txt 
 
-./build/celogin_cli create_prod -m P11,dev,UNSET -e 2035-05-01 -j json.txt -v2 -t bmcshell -f script.txt -n
+./build/celogin_cli create_prod -m P11,dev,UNSET -e 2035-05-01 -j json.txt -v2 -t bmcshell -f script.txt -n -b 6000 -i
 
 openssl dgst -sign p11-celogin-lab-pkey.der -sha512 -keyform DER -out signature.bin  json.txt
 

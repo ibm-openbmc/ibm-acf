@@ -22,6 +22,8 @@ extern const char* JsonName_Iterations;
 extern const char* JsonName_AdminAuthCode;
 extern const char* JsonName_ResourceDumps;
 extern const char* JsonName_BmcShellScript;
+extern const char* JsonName_BmcTimeoutVal;
+extern const char* JsonName_IssueBmcDump;
 extern const char* JsonName_Type;
 
 extern const char* JsonValue_AcfTypeService;
@@ -65,6 +67,8 @@ struct CeLoginJsonData
     uint64_t mAdminAuthCodeLength;
     uint8_t mAsciiScriptFile[MaxAsciiScriptFileLength];
     uint64_t mAsciiScriptFileLength;
+    uint64_t mBmcTimeout;
+    bool mIssueBmcDump;
     AntiReplayInfo mReplayInfo;
 };
 

@@ -229,6 +229,8 @@ struct AcfUserFields
         {
             char mBmcShell[MaxAsciiScriptFileLength];
             uint64_t mBmcShellLength;
+            uint64_t mBmcTimeout;
+            bool mIssueBmcDump;
         } mBmcShellFields;
 
     } mTypeSpecificFields;

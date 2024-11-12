@@ -31,6 +31,8 @@ struct CeLoginCreateHsfArgsV2
     bool mNoReplayId;
     std::string mType;
     std::string mScript;
+    uint64_t mBmcTimeout;
+    bool mIssueBmcDump;
 };
 
 struct CeLoginDecryptedHsfArgsV2
