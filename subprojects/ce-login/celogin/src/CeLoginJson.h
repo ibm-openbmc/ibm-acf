@@ -46,7 +46,7 @@ struct CeLoginJsonData
         mVersion(CeLoginInvalidVersion), mType(AcfType_Invalid),
         mRequestedAuthority(ServiceAuth_None), mHashedAuthCodeLength(0),
         mAuthCodeSaltLength(0), mExpirationDate(), mIterations(0),
-        mReplayInfo(), mAdminAuthCodeLength(0), mAsciiScriptFileLength(0)
+        mAdminAuthCodeLength(0), mAsciiScriptFileLength(0), mReplayInfo()
     {
         memset(&mHashedAuthCode, 0x00, sizeof(mHashedAuthCode));
         memset(&mAuthCodeSalt, 0x00, sizeof(mAuthCodeSalt));
@@ -66,7 +66,7 @@ struct CeLoginJsonData
     uint8_t mAdminAuthCode[CeLogin_MaxHashedAuthCodeLength];
     uint64_t mAdminAuthCodeLength;
     uint8_t mAsciiScriptFile[MaxAsciiScriptFileLength];
-    uint64_t mAsciiScriptFileLength;
+    size_t mAsciiScriptFileLength;
     uint64_t mBmcTimeout;
     bool mIssueBmcDump;
     AntiReplayInfo mReplayInfo;

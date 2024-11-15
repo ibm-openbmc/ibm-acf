@@ -639,7 +639,7 @@ CeLoginRc ParseServiceLoginFields(const JsmnUtils::JsmnState& jsmnStateParm,
     // Convert JsmnRc to CeLoginRc for consolidated RC handling
     sRc = CeLoginRc(CeLoginRc::JsmnUtils, sJsmnRc);
 
-    if (CeLoginRc::Success == sJsmnRc)
+    if (CeLoginRc::Success == sRc)
     {
         sRc = ParseCommonAcfFields(
             jsmnStateParm, decodedJsonParm.mExpirationDate, serialNumberParm,

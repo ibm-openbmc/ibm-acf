@@ -364,7 +364,6 @@ CeLogin::CeLoginRc CeLogin::createCeLoginAcfV2Signature(
 {
     CeLoginRc sRc = CeLoginRc::Success;
 
-    const CeLoginCreateHsfArgsV2& sArgsV2 = argsParm;
     const CeLoginCreateHsfArgsV1& sArgsV1 = argsParm.mV1Args;
 
     const uint8_t* sConstPrivateKey = sArgsV1.mPrivateKey.data();
@@ -449,7 +448,6 @@ CeLogin::CeLoginRc
 {
     CeLoginRc sRc = CeLoginRc::Success;
 
-    const CeLoginCreateHsfArgsV2& sArgsV2 = argsParm;
     const CeLoginCreateHsfArgsV1& sArgsV1 = argsParm.mV1Args;
     CELoginSequenceV1* sHsfStruct = NULL;
 

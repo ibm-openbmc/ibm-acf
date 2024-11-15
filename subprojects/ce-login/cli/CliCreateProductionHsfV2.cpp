@@ -53,9 +53,8 @@ struct Arguments
     bool mHelp;
 
     Arguments() :
-        mNoReplayId(false), mVerbose(false), mHelp(false), mBmcTimeout(60),
-        mIssueBmcDump(false)
-
+        mBmcTimeout(60), mIssueBmcDump(false), mNoReplayId(false),
+        mVerbose(false), mHelp(false)
     {}
 };
 
