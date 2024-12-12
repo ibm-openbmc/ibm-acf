@@ -343,6 +343,9 @@ class Tacf : TargetedAcf
         // Unlock admin user account using dbus interface.
         TacfDbus().unlockUser(adminName);
 
+        // Bypass MFA for admin user account using dbus interface.
+        TacfDbus().bypassMFAUser(adminName);
+
         return tacfSuccess;
     }
 
