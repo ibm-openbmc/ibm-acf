@@ -218,6 +218,29 @@ class TacfDbus
     }
 
     /**
+     * Bypass MFA for user login acount using dbus interface.
+     * @brief bypass MFA for user login account.
+     *
+     * @param userName  Name of the user account to bypass MFA
+     *
+     * @return A non-zero error value or zero on success.
+     */
+    int bypassMFAUser(const std::string& userName) const
+    {
+        // Target the appropriate user
+        sdbusplus::message::object_path userPath("/xyz/openbmc_project/user");
+        userPath /= userName;
+        std::string propertyPath(userPath);
+        std::string bypassType = "xyz.openbmc_project.User.MultiFactorAuthConfiguration.Type.GoogleAuthenticator";
+        PropertyVariant message = bypassType;
+
+        // Set the property
+        return dbusSetProperty("xyz.openbmc_project.User.Manager", propertyPath,
+                               "xyz.openbmc_project.User.TOTPAuthenticator",
+                               "BypassedProtocol", message);
+    }
+
+    /**
      * Set user privilege level using dbus interface.
      * @brief Set user privilege level.
      *
