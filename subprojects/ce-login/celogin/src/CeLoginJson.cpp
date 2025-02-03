@@ -750,10 +750,9 @@ CeLoginRc ParseResourceDumpFields(const JsmnUtils::JsmnState& jsmnStateParm,
 
     if (CeLoginRc::Success == sRc)
     {
-        ServiceAuthority sIgnoredAuth;
         sRc = ParseCommonAcfFields(
             jsmnStateParm, decodedJsonParm.mExpirationDate, serialNumberParm,
-            serialNumberLengthParm, sIgnoredAuth);
+            serialNumberLengthParm, decodedJsonParm.mRequestedAuthority);
     }
 
     // Copy out resourcedump field

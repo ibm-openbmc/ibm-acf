@@ -2495,6 +2495,10 @@ UnitTestResult ut_acf_resource_dump_v2()
                     .mResourceDumpLength)),
             sHsfArgsV2.mScript);
     DO_TEST(sResult, sFields.mExpirationTime > 0, sFields.mExpirationTime);
+    DO_TEST(sResult,
+            sFields.mTypeSpecificFields.mResourceDumpFields.mAuth ==
+                ServiceAuth_CE,
+            sFields.mTypeSpecificFields.mResourceDumpFields.mAuth);
 
     // Any input for replay ID that isn't exactly equal should fail
     sFields.clear();

@@ -223,6 +223,7 @@ struct AcfUserFields
         {
             char mResourceDump[MaxAsciiScriptFileLength];
             uint64_t mResourceDumpLength;
+            ServiceAuthority mAuth;
         } mResourceDumpFields;
 
         struct
