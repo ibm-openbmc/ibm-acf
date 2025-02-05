@@ -501,6 +501,8 @@ static CeLoginRc checkAuthorizationAndGetAcfUserFieldsV2Internal(
                        sJsonData->mAsciiScriptFileLength);
                 userFieldsParm.mTypeSpecificFields.mResourceDumpFields
                     .mResourceDumpLength = sJsonData->mAsciiScriptFileLength;
+                userFieldsParm.mTypeSpecificFields.mResourceDumpFields.mAuth =
+                    sJsonData->mRequestedAuthority;
             }
         }
         else if (CeLogin::AcfType_BmcShell == sJsonData->mType)
