@@ -77,12 +77,6 @@ class TargetedAcf
                         {
                             // Reset admin account.
                             rc = resetAdmin(auth);
-
-                            if (!rc)
-                            {
-                                // And remove old ACF.
-                                removeAcf();
-                            }
                         }
 
                         // Or if ACF type is service.
