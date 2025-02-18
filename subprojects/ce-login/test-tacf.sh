@@ -4,7 +4,7 @@ rm -f json.txt script.txt password.txt signature.bin acf.bin
 
 echo Test Resource Dump ACF
 
-echo -n "resourcedump command1; resourcedump command2;" > script.txt 
+echo -n "resourcedump command1; resourcedump command2;" > script.txt
 
 ./build/celogin_cli create_prod -m P11,dev,UNSET -e 2035-05-01 -j json.txt -v2 -t resourcedump -f script.txt -n
 
@@ -18,7 +18,7 @@ rm -f json.txt script.txt password.txt signature.bin acf.bin
 
 echo Test Bmc Shell ACF
 
-echo -n "bmcshell command1; bmcshell command2;" > script.txt 
+echo -n "bmcshell command1; bmcshell command2;" > script.txt
 
 ./build/celogin_cli create_prod -m P11,dev,UNSET -e 2035-05-01 -j json.txt -v2 -t bmcshell -f script.txt -n -b 6000 -i
 

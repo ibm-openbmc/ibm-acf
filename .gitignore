@@ -8,3 +8,5 @@ celogin_cli
 *.o
 
 .DS_STORE
+
+.vscode
