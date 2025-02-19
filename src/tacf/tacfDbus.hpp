@@ -3,7 +3,9 @@
 #include <sdbusplus/bus.hpp>
 
 #include <cstdint>
+#include <string>
 #include <variant>
+#include <vector>
 
 /**
  * TacfBus class for interacting with dbus objects.
@@ -15,7 +17,7 @@ class TacfDbus
      * @brief Types of properties expected to be read.
      */
     using PropertyVariant =
-        std::variant<std::string, bool, std::vector<uint8_t>>;
+        std::variant<std::vector<uint8_t>, std::string, bool>;
 
     /**
      * Retrieve the serial number using dbus get properties interface.
@@ -231,7 +233,9 @@ class TacfDbus
         sdbusplus::message::object_path userPath("/xyz/openbmc_project/user");
         userPath /= userName;
         std::string propertyPath(userPath);
-        std::string bypassType = "xyz.openbmc_project.User.MultiFactorAuthConfiguration.Type.GoogleAuthenticator";
+        std::string bypassType =
+            "xyz.openbmc_project.User.MultiFactorAuthConfiguration.Type."
+            "GoogleAuthenticator";
         PropertyVariant message = bypassType;
 
         // Set the property
