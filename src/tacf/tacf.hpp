@@ -38,7 +38,7 @@ constexpr auto serialNumberEmpty = "       ";
 
 constexpr auto serialNumberUnset = "UNSET";
 
-constexpr auto adminName = "admin";
+constexpr auto adminName   = "admin";
 constexpr auto serviceName = "service";
 
 constexpr auto privilegeAdmin = "priv-admin";
@@ -78,8 +78,7 @@ class Tacf : TargetedAcf
 
     Tacf(logging_function_pam logger, field_mode_function_pam fieldmode,
          void* handle) :
-        loggerPam(logger),
-        fieldModePam(fieldmode), pamHandle(handle)
+        loggerPam(logger), fieldModePam(fieldmode), pamHandle(handle)
     {}
 
     /**
@@ -367,7 +366,7 @@ class Tacf : TargetedAcf
      *
      * @return A non-zero error value or zero on success.
      */
-    virtual int installAcf(const uint8_t* acf, size_t size)
+    virtual int installAcf(const uint8_t* acf, size_t size) override
     {
         if (!acf || !size)
         {
