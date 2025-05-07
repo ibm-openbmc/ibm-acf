@@ -10,7 +10,6 @@ cxx = meson.get_compiler('cpp')
 pam = cxx.find_library('pam', required: true)
 libcrypto = dependency('libcrypto', required : true)
 libssl = dependency('libssl', required : true)
-
 if get_option('tests').enabled()
   #Link with subproject and generate cli utility to gen acf
   sp = subproject('ce-login', default_options : 'bin=true')

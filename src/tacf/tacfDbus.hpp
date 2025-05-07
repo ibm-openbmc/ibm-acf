@@ -1,12 +1,12 @@
 #pragma once
 
+#include <ce_logger.hpp>
 #include <sdbusplus/bus.hpp>
 
 #include <cstdint>
 #include <string>
 #include <variant>
 #include <vector>
-
 /**
  * TacfBus class for interacting with dbus objects.
  */
@@ -267,6 +267,60 @@ class TacfDbus
         return dbusSetProperty("xyz.openbmc_project.User.Manager", propertyPath,
                                "xyz.openbmc_project.User.Attributes",
                                "UserPrivilege", message);
+    }
+
+    static int invokeBmcShell(const std::string& shellScript, uint64_t timeout,
+                              bool issueBmcDump)
+    {
+        try
+        {
+            // Craft the dbus method for invoking the shell script.
+            auto bus    = sdbusplus::bus::new_system();
+            auto method = bus.new_method_call(
+                "xyz.openbmc_project.acfshell", "/xyz/openbmc_project/acfshell",
+                "xyz.openbmc_project.TacfShell", "start");
+            method.append(shellScript, timeout, issueBmcDump);
+
+            bus.call(method);
+        }
+        catch (const sdbusplus::exception_t& e)
+        {
+            CE_LOG_ERROR("BMC shell invocation failed: ", e.what());
+            return 1;
+        }
+        return 0;
+    }
+    int initiateResourceDump(const std::string& fileName)
+    {
+        try
+        {
+            std::vector<
+                std::pair<std::string, std::variant<std::string, uint64_t>>>
+                createDumpParams;
+            createDumpParams.emplace_back(
+                "com.ibm.Dump.Create.CreateParameters.VSPString",
+                std::string("TARGETEDACF"));
+            createDumpParams.emplace_back(
+                "com.ibm.Dump.Create.CreateParameters.Password",
+                std::string(""));
+            createDumpParams.emplace_back(
+                "com.ibm.Dump.Create.CreateParameters.AcfFile", fileName);
+
+            // Craft the dbus method for invoking the shell script.
+            auto bus    = sdbusplus::bus::new_system();
+            auto method = bus.new_method_call(
+                "xyz.openbmc_project.Dump.Manager",
+                "/xyz/openbmc_project/dump/system",
+                "xyz.openbmc_project.Dump.Create", "CreateDump");
+            method.append(createDumpParams);
+            bus.call(method);
+        }
+        catch (const sdbusplus::exception_t& e)
+        {
+            CE_LOG_ERROR("Resource dump initiation failed: ", e.what());
+            return 1;
+        }
+        return 0;
     }
 
     /**
