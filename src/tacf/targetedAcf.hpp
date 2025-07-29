@@ -3,8 +3,8 @@
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
+#include <iostream>
 #include <string>
-
 /**
  * TargetedAcf class for targeted access control file (ACF) features.
  */
@@ -44,7 +44,6 @@ class TargetedAcf
         // Get previous anti-replay id.
         uint64_t replay;
         int rc = retrieveReplayId(replay);
-
         if (!rc)
         {
             // Remember current replay id in case install fails.
@@ -52,10 +51,10 @@ class TargetedAcf
 
             unsigned int type = acfTypeInvalid;
             std::string auth;
-
+            CeLogin::AcfUserFields acfUserFields;
             // Process the ACF.
             rc = getAuth(acf, size, auth, type, expires, replay, action,
-                         password);
+                         password, acfUserFields);
 
             // If processing successful.
             if (!rc)
@@ -73,25 +72,28 @@ class TargetedAcf
                     if (!rc)
                     {
                         // And ACF type is admin-reset.
-                        if (acfTypeAdminReset == type)
+                        switch (type)
                         {
-                            // Reset admin account.
-                            rc = resetAdmin(auth);
-
-                            if (!rc)
+                            case acfTypeAdminReset:
                             {
-                                // And remove old ACF.
-                                removeAcf();
+                                rc = resetAdmin(auth);
+
+                                if (!rc)
+                                {
+                                    // And remove old ACF.
+                                    removeAcf();
+                                }
                             }
+                            break;
+                            case acfTypeService:
+                            case acfTypeResourceDump:
+                            case acfTypeBmcShell:
+                                rc = installAcf(acf, size, type, acfUserFields);
+                                break;
+                            default:
+                                rc = -1;
+                                break;
                         }
-
-                        // Or if ACF type is service.
-                        else if (acfTypeService == type)
-                        {
-                            // Then install new ACF.
-                            rc = installAcf(acf, size);
-                        }
-
                         // If install action was not successful.
                         if (rc)
                         {
@@ -101,6 +103,10 @@ class TargetedAcf
                     }
                 }
             }
+            else
+            {
+                CE_LOG_DEBUG("Targeted getAuth successful failure");
+            }
         }
         return rc;
     }
@@ -109,9 +115,19 @@ class TargetedAcf
     /**
      * @brief Implementation specific value definitions.
      */
-    const static unsigned int acfTypeService;
-    const static unsigned int acfTypeAdminReset;
-    const static unsigned int acfTypeInvalid;
+    static constexpr unsigned int acfTypeService =
+        CeLogin::AcfType::AcfType_Service;
+
+    static constexpr unsigned int acfTypeAdminReset =
+        CeLogin::AcfType::AcfType_AdminReset;
+    static constexpr unsigned int acfTypeInvalid =
+        CeLogin::AcfType::AcfType_Invalid;
+
+    constexpr static unsigned int acfTypeResourceDump =
+        CeLogin::AcfType::AcfType_ResourceDump;
+
+    constexpr static unsigned int acfTypeBmcShell =
+        CeLogin::AcfType::AcfType_BmcShell;
 
   private:
     /**
@@ -133,7 +149,8 @@ class TargetedAcf
     virtual int getAuth(const uint8_t* acf, size_t size, std::string& auth,
                         unsigned int& type, std::string& expires,
                         uint64_t& replay, TargetedAcfAction action,
-                        const char* password) = 0;
+                        const char* password,
+                        CeLogin::AcfUserFields& acfUserFields) = 0;
 
     /**
      * Retrieve the current replay id value.
@@ -180,5 +197,6 @@ class TargetedAcf
      *
      * @return A non-zero error value or zero on success.
      */
-    virtual int installAcf(const uint8_t* acf, size_t size) = 0;
+    virtual int installAcf(const uint8_t* acf, size_t size, unsigned int type,
+                           const CeLogin::AcfUserFields& acfUserFields) = 0;
 };

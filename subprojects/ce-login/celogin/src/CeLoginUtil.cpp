@@ -13,6 +13,7 @@
 #include <string.h>  // strstr, memcpy, strlen
 #include <strings.h> // bzero
 
+#include <ce_logger.hpp>
 /// TODO: rtc 268075 Determine if openssl can provide this function. If it can,
 /// use that instead.
 CeLogin::CeLoginRc CeLogin::getBinaryFromHex(const char* hexStringParm,
@@ -167,6 +168,7 @@ CeLogin::CeLoginRc CeLogin::decodeAndVerifyAcf(
         sExpectedObject = OBJ_nid2obj(CeLogin_Acf_NID);
         if (!sExpectedObject)
         {
+            CE_LOG_DEBUG("Failed to get NID");
             sRc = CeLoginRc::VerifyAcf_Nid2OidFailed;
         }
     }
@@ -184,6 +186,8 @@ CeLogin::CeLoginRc CeLogin::decodeAndVerifyAcf(
                                                accessControlFileLengthParm);
         if (!decodedAsnParm)
         {
+
+            CE_LOG_DEBUG("Failed to decode ASN.1 structure");
             sRc = CeLoginRc::VerifyAcf_AsnDecodeFailure;
         }
     }
@@ -292,6 +296,7 @@ CeLogin::CeLoginRc CeLogin::decodeAndVerifySignature(
         sPublicKey = d2i_PUBKEY(NULL, &publicKeyParm, publicKeyLengthParm);
         if (!sPublicKey)
         {
+            CE_LOG_DEBUG("Failed to import public key");
             sRc = CeLoginRc::VerifyAcf_PublicKeyImportFailure;
         }
     }
@@ -602,10 +607,10 @@ CeLogin::CeLoginRc CeLogin::verifySignature(EVP_PKEY* publicKeyParm,
 }
 
 CeLogin::CeLoginRc CeLogin::base64Decode(const char* inputParm,
-                                const size_t inputLenParm,
-                                uint8_t* decodedOutputParm,
-                                const size_t decodedOutputLenParm,
-                                size_t& numDecodedBytesParm)
+                                         const size_t inputLenParm,
+                                         uint8_t* decodedOutputParm,
+                                         const size_t decodedOutputLenParm,
+                                         size_t& numDecodedBytesParm)
 {
     CeLoginRc sRc = CeLoginRc::Success;
 
