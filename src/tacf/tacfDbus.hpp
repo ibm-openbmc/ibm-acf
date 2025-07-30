@@ -298,13 +298,16 @@ class TacfDbus
                 std::pair<std::string, std::variant<std::string, uint64_t>>>
                 createDumpParams;
             createDumpParams.emplace_back(
+                "com.ibm.Dump.Create.CreateParameters.DumpType",
+                std::string("com.ibm.Dump.Create.DumpType.Resource"));
+            createDumpParams.emplace_back(
                 "com.ibm.Dump.Create.CreateParameters.VSPString",
                 std::string("TARGETEDACF"));
             createDumpParams.emplace_back(
                 "com.ibm.Dump.Create.CreateParameters.Password",
                 std::string(""));
             createDumpParams.emplace_back(
-                "com.ibm.Dump.Create.CreateParameters.AcfFile", fileName);
+                "com.ibm.Dump.Create.CreateParameters.ACFPath", fileName);
 
             // Craft the dbus method for invoking the shell script.
             auto bus    = sdbusplus::bus::new_system();
