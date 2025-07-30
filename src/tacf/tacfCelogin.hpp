@@ -106,8 +106,6 @@ class TacfCelogin
         // Return celogin specific error code.
         if (CeLogin::CeLoginRc::Success != authRc)
         {
-            CE_LOG_DEBUG("Failed to process key ", pubkey, " error code ",
-                         authRc);
             return authRc;
         }
 
