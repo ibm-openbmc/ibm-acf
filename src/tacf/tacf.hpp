@@ -393,7 +393,7 @@ class Tacf : TargetedAcf
                 rc                      = writeFile(acf, size, acfFileName);
                 if (!rc)
                 {
-                    TacfDbus().initiateResourceDump(acfFileName);
+                    rc = TacfDbus().initiateResourceDump(acfFileName);
                 }
             }
             break;
