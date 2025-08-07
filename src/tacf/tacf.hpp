@@ -394,6 +394,10 @@ class Tacf : TargetedAcf
                 if (!rc)
                 {
                     rc = TacfDbus().initiateResourceDump(acfFileName);
+                    if (rc)
+                    {
+                        std::remove(acfFileName.c_str());
+                    }
                 }
             }
             break;
