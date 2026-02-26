@@ -288,16 +288,6 @@ bool validateArgs(const Arguments& args, Operation& operationParm,
             }
         }
 
-        if (sIsValidArgs && (CeLogin::AcfType_AdminReset == acfTypeParm))
-        {
-            if (sNoReplayId)
-            {
-#ifndef TOLERATE_ADMIN_RESET_REPLAY
-                sIsValidArgs = false;
-                cerr << "Admin reset type requires replay ID" << endl;
-#endif
-            }
-        }
     }
 
     if (!sIsValidArgs)
