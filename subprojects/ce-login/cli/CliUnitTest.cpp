@@ -1852,7 +1852,7 @@ UnitTestResult ut_expiration_time_validation()
     UnitTestResult sResult;
     CeLoginRc sRc = CeLoginRc::Success;
 
-    const uint64_t sExpirationTimestamp = 1650585600;
+    const uint64_t sExpirationTimestamp = 1650671999;
     const std::string sExpirationString = "2022-04-22";
 
     // Validate that the timestamp and string are the same time
@@ -1869,7 +1869,7 @@ UnitTestResult ut_expiration_time_validation()
                                     sExpirationString.length(), sDate);
             DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
 
-            sRc = getAsn1Time(sDate, sAsn1DateFromString);
+            sRc = getAsn1TimeForExpiration(sDate, sAsn1DateFromString);
             DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
 
             ASN1_TIME* sOsslResult =
@@ -1966,10 +1966,10 @@ UnitTestResult ut_max_expiration_time_validation()
     UnitTestResult sResult;
     CeLoginRc sRc = CeLoginRc::Success;
 
-    const uint64_t sMaxExpirationTimestamp = 253402214400;
+    const uint64_t sMaxExpirationTimestamp = 253402300799;
     const std::string sMaxExpirationString = "9999-12-31";
 
-    const uint64_t sAlmostMaxExpirationTimestamp = 253402128000;
+    const uint64_t sAlmostMaxExpirationTimestamp = 253402214399;
     const std::string sAlmostMaxExpirationString = "9999-12-30";
 
     // Validate that the timestamp and string are the same time
@@ -1986,7 +1986,7 @@ UnitTestResult ut_max_expiration_time_validation()
                                     sMaxExpirationString.length(), sDate);
             DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
 
-            sRc = getAsn1Time(sDate, sAsn1DateFromString);
+            sRc = getAsn1TimeForExpiration(sDate, sAsn1DateFromString);
             DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
 
             ASN1_TIME* sOsslResult =
@@ -1998,7 +1998,7 @@ UnitTestResult ut_max_expiration_time_validation()
             // after b. -2 is returned on error.
             const int sCompareResult =
                 ASN1_TIME_compare(sAsn1DateFromString, sAsn1DateFromTimestamp);
-            DO_TEST(sResult, 0 == sCompareResult, sCompareResult);
+            DO_TEST(sResult, 0 == sCompareResult, sAsn1DateFromString);
         }
 
         if (sAsn1DateFromString && sAsn1DateFromTimestamp)
@@ -2008,7 +2008,7 @@ UnitTestResult ut_max_expiration_time_validation()
                                     sAlmostMaxExpirationString.length(), sDate);
             DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
 
-            sRc = getAsn1Time(sDate, sAsn1DateFromString);
+            sRc = getAsn1TimeForExpiration(sDate, sAsn1DateFromString);
             DO_TEST(sResult, CeLoginRc::Success == sRc, sRc);
 
             ASN1_TIME* sOsslResult = ASN1_TIME_set(
