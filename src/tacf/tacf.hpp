@@ -315,7 +315,7 @@ class Tacf : TargetedAcf
      */
     virtual int resetAdmin(const std::string& spw) final override
     {
-        const std::vector<std::string> adminGroups = {"web", "redfish"};
+        const std::vector<std::string> adminGroups = {"hostconsole", "redfish"};
 
         // Create admin user account using dbus interfaces.
         TacfDbus().createUser(adminName, adminGroups, privilegeAdmin);
