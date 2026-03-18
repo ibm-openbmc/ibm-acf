@@ -40,7 +40,8 @@ CeLoginRc getDateFromString(const char* dateStringParm,
                             const uint64_t dateStringLengthParm,
                             CeLogin_Date& dateParm);
 
-CeLoginRc getAsn1Time(const CeLogin_Date& dateParm, ASN1_TIME* timeParm);
+CeLoginRc getAsn1TimeForExpiration(const CeLogin_Date& dateParm,
+                                   ASN1_TIME* timeParm);
 
 CeLoginRc decodeAndVerifySignature(const uint8_t* accessControlFileParm,
                                    const uint64_t accessControlFileLengthParm,
@@ -104,11 +105,10 @@ CeLoginRc createSignature(EVP_PKEY* privateKeyParm, const EVP_MD* mdParm,
                           uint8_t* generatedSignatureParm,
                           size_t& signatureSizeParm);
 
-CeLoginRc base64Decode(const char*  inputParm,
-                       const size_t inputLenParm,
-                       uint8_t*     decodedOutputParm,
+CeLoginRc base64Decode(const char* inputParm, const size_t inputLenParm,
+                       uint8_t* decodedOutputParm,
                        const size_t decodedOutputLenParm,
-                       size_t&      numDecodedBytesParm);
+                       size_t& numDecodedBytesParm);
 
 }; // namespace CeLogin
 
