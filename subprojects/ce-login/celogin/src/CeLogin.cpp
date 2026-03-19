@@ -37,8 +37,8 @@ CeLogin::CeLoginRc
 
         if (CeLoginRc::Success == sRc)
         {
-            sRc =
-                getAsn1Time(jsonDataParm->mExpirationDate, sAsn1ExpirationTime);
+            sRc = getAsn1TimeForExpiration(jsonDataParm->mExpirationDate,
+                                           sAsn1ExpirationTime);
         }
 
         // Get the expiration time in seconds since unix epoch. Supports dates

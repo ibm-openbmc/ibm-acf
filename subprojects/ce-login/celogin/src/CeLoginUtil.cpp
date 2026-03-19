@@ -99,8 +99,9 @@ CeLogin::CeLoginRc
     return sRc;
 }
 
-CeLogin::CeLoginRc CeLogin::getAsn1Time(const CeLogin::CeLogin_Date& dateParm,
-                                        ASN1_TIME* timeParm)
+CeLogin::CeLoginRc
+    CeLogin::getAsn1TimeForExpiration(const CeLogin::CeLogin_Date& dateParm,
+                                      ASN1_TIME* timeParm)
 {
     // ASN1 Time Strings are in the form YYYYMMDDHHMMSSZ defined by RFC 5280
     // For example 20210113000102Z would be:
@@ -111,9 +112,9 @@ CeLogin::CeLoginRc CeLogin::getAsn1Time(const CeLogin::CeLogin_Date& dateParm,
     {
         char sTimeStr[16];
 
-        const uint8_t sHour = 0;
-        const uint8_t sMin = 0;
-        const uint8_t sSec = 0;
+        const uint8_t sHour = 23;
+        const uint8_t sMin = 59;
+        const uint8_t sSec = 59;
 
         int sLength =
             sprintf(sTimeStr, "%04u%02u%02u%02u%02u%02uZ", dateParm.mYear,
