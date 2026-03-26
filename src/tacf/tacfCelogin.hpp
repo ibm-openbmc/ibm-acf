@@ -38,9 +38,10 @@ class TacfCelogin
 
         CeLogin::AcfUserFields acfUserFields;
 
-        // Authenticate with password.
+        // Authenticate with password using PAM-specific function
+        // This skips replay ID validation for PAM authentication
         CeLogin::CeLoginRc authRc =
-            CeLogin::checkAuthorizationAndGetAcfUserFieldsV2(
+            CeLogin::checkAuthorizationAndGetAcfUserFieldsV2ForPAM(
                 acf, acfSize, password, strlen(password), timestamp, pubkey,
                 pubkeySize, serial.data(), serial.size(), replayId,
                 acfUserFields);
