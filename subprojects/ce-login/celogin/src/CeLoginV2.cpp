@@ -100,42 +100,37 @@ static CeLoginRc validateAndParseAcfV2(
 static CeLogin::CeLoginRc doFullReplayValidation(
     const CeLogin::AcfType acfTypeParm, const bool replayIdPresent,
     const uint64_t currentPersistedReplayIdParm, const uint64_t acfReplayIdParm,
-    uint64_t& updatedReplayIdParm)
+    uint64_t& updatedReplayIdParm, bool strictValidity)
 {
-    CeLoginRc sRc = CeLoginRc::Success;
-
-    if (replayIdPresent)
-    {
-        // The validity checks here depend on ACF type
-        // Since a service ACF may be validated more than once, we will tolerate
-        // a replay ID that is >= the persisted value. All other use cases
-        // (today) require a strict inequality
-        if (CeLogin::AcfType_Service == acfTypeParm)
-        {
-            if (acfReplayIdParm < currentPersistedReplayIdParm)
-            {
-                sRc = CeLoginRc::InvalidReplayId;
-            }
-        }
-        else
-        {
-            if (acfReplayIdParm <= currentPersistedReplayIdParm)
-            {
-                sRc = CeLoginRc::InvalidReplayId;
-            }
-        }
-
-        if (CeLoginRc::Success == sRc)
-        {
-            updatedReplayIdParm = acfReplayIdParm;
-        }
-    }
-    else
+    if (!replayIdPresent)
     {
         updatedReplayIdParm = currentPersistedReplayIdParm;
+        return CeLoginRc::Success;
     }
-
-    return sRc;
+    if (strictValidity)
+    {
+        if (acfReplayIdParm <= currentPersistedReplayIdParm)
+        {
+            return CeLoginRc::InvalidReplayId;
+        }
+        updatedReplayIdParm = acfReplayIdParm;
+        return CeLoginRc::Success;
+    }
+    if (CeLogin::AcfType_Service == acfTypeParm)
+    {
+        if (acfReplayIdParm < currentPersistedReplayIdParm)
+        {
+            return CeLoginRc::InvalidReplayId;
+        }
+        updatedReplayIdParm = acfReplayIdParm;
+        return CeLoginRc::Success;
+    }
+    if (acfReplayIdParm <= currentPersistedReplayIdParm)
+    {
+        return CeLoginRc::InvalidReplayId;
+    }
+    updatedReplayIdParm = acfReplayIdParm;
+    return CeLoginRc::Success;
 }
 
 CeLoginRc CeLogin::extractACFMetadataV2(
@@ -331,7 +326,7 @@ CeLoginRc CeLogin::verifyACFForBMCUploadV2(
         sRc = doFullReplayValidation(
             sJsonData->mType, sJsonData->mReplayInfo.mReplayIdPresent,
             currentReplayIdParm, sJsonData->mReplayInfo.mReplayId,
-            updatedReplayIdParm);
+            updatedReplayIdParm, true);
     }
 
     if (CeLoginRc::Success == sRc)
@@ -593,6 +588,32 @@ CeLoginRc CeLogin::checkAuthorizationAndGetAcfUserFieldsV2(
 
     return sRc;
 }
+
+CeLoginRc CeLogin::checkAuthorizationAndGetAcfUserFieldsV2ForPAM(
+    const uint8_t* accessControlFileParm,
+    const uint64_t accessControlFileLengthParm, const char* passwordParm,
+    const uint64_t passwordLengthParm,
+    const uint64_t timeSinceUnixEpochInSecondsParm,
+    const uint8_t* publicKeyParm, const uint64_t publicKeyLengthParm,
+    const char* serialNumberParm, const uint64_t serialNumberLengthParm,
+    const uint64_t currentReplayIdParm, AcfUserFields& userFieldsParm)
+{
+    bool sHasReplayId = false;
+    uint64_t sAcfReplayId = 0;
+
+    CeLoginRc sRc = checkAuthorizationAndGetAcfUserFieldsV2Internal(
+        accessControlFileParm, accessControlFileLengthParm, passwordParm,
+        passwordLengthParm, timeSinceUnixEpochInSecondsParm, publicKeyParm,
+        publicKeyLengthParm, serialNumberParm, serialNumberLengthParm,
+        sHasReplayId, sAcfReplayId, userFieldsParm);
+
+    // PAM authentication: Skip replay ID validation entirely
+    // Users can login with password and service username without anti-replay
+    // checks All other validations (signature, expiration, serial number,
+    // password) remain active
+
+    return sRc;
+}
 #else
 CeLoginRc CeLogin::checkAuthorizationAndGetAcfUserFieldsV2ForPowerVM(
     const uint8_t* accessControlFileParm,
@@ -625,7 +646,7 @@ CeLoginRc CeLogin::checkAuthorizationAndGetAcfUserFieldsV2ForPowerVM(
         {
             sRc = doFullReplayValidation(userFieldsParm.mType, sHasReplayId,
                                          currentReplayIdParm, sAcfReplayId,
-                                         updatedReplayIdParm);
+                                         updatedReplayIdParm, false);
         }
     }
 

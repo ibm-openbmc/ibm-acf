@@ -379,6 +379,42 @@ CeLoginRc checkAuthorizationAndGetAcfUserFieldsV2(
     const char* serialNumberParm, const uint64_t serialNumberLengthParm,
     const uint64_t currentReplayIdParm, AcfUserFields& userFieldsParm);
 
+/** @brief PAM-specific authentication without replay ID validation
+ *
+ *  This function is specifically for PAM authentication use cases where
+ *  replay ID validation should be skipped. Users can login with password
+ *  and service username without anti-replay validation checks.
+ *  All other validations (signature, expiration, serial number, password)
+ *  remain active.
+ *
+ *  @param accessControlFileParm a pointer to the ASN1 encoded binary ACF
+ *  @param accessControlFileLengthParm the byte length of the provided ACF
+ *  @param passwordParm a pointer to the provided password
+ *  @param passwordLengthParm the length of the provided password
+ *  @param timeSinceUnixEpochInSecondsParm the current system time encoded as a
+ * unix timestamp
+ *  @param publicKeyParm a pointer to the public key used to validate the
+ * signature over the ACF
+ *  @param publicKeyLengthParm the byte length of the provided public key
+ *  @param serialNumberParm a pointer to the serial number of the current system
+ *  @param serialNumberLengthParm the length of the provided serial number
+ *  @param currentReplayIdParm the current replay ID (ignored for validation)
+ *  @param userFieldsParm an instance of AcfUserFields which contains the data
+ * parsed from the ACF on successful execution.
+ *
+ *  @return A CeLoginRc indicating the result. CeLoginRc::Success indicates that
+ * the ACF is valid and the AcfUserFields has been populated with the relevant
+ * fields.
+ */
+CeLoginRc checkAuthorizationAndGetAcfUserFieldsV2ForPAM(
+    const uint8_t* accessControlFileParm,
+    const uint64_t accessControlFileLengthParm, const char* passwordParm,
+    const uint64_t passwordLengthParm,
+    const uint64_t timeSinceUnixEpochInSecondsParm,
+    const uint8_t* publicKeyParm, const uint64_t publicKeyLengthParm,
+    const char* serialNumberParm, const uint64_t serialNumberLengthParm,
+    const uint64_t currentReplayIdParm, AcfUserFields& userFieldsParm);
+
 #else
 
 /** @brief PowerVM interface for checkAuthorizationAndGetAcfUserFieldsV2
