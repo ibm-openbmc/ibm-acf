@@ -77,12 +77,6 @@ class TargetedAcf
                             case acfTypeAdminReset:
                             {
                                 rc = resetAdmin(auth);
-
-                                if (!rc)
-                                {
-                                    // And remove old ACF.
-                                    removeAcf();
-                                }
                             }
                             break;
                             case acfTypeService:
