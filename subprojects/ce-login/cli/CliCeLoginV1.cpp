@@ -144,6 +144,17 @@ CeLoginRc CeLogin::createCeLoginAcfV1Payload(
                         sFrameworkEcStr = FrameworkEc_P11_Service;
                     }
                 }
+                else if (cli::P12 == argsParm.mMachines[sIdx].mProc)
+                {
+                    if (ServiceAuth_Dev == argsParm.mMachines[sIdx].mAuth)
+                    {
+                        sFrameworkEcStr = FrameworkEc_P12_Dev;
+                    }
+                    else if (ServiceAuth_CE == argsParm.mMachines[sIdx].mAuth)
+                    {
+                        sFrameworkEcStr = FrameworkEc_P12_Service;
+                    }
+                }
 
                 json_object* sFrameworkEc =
                     json_object_new_string(sFrameworkEcStr.c_str());
@@ -259,34 +270,137 @@ CeLoginRc CeLogin::createCeLoginAcfV1Payload(
     return sRc;
 }
 
+int CeLogin::getNidForSignatureAlgorithm(SignatureAlgorithm algorithmParm)
+{
+    switch (algorithmParm)
+    {
+#ifdef CELOGIN_MLDSA_SUPPORTED
+        case SignatureAlgorithm_MlDsa87:
+            return CeLogin::CeLogin_Acf_MLDSA87_NID;
+#endif
+        case SignatureAlgorithm_RsaSha512:
+        default:
+            return CeLogin::CeLogin_Acf_RSA_NID;
+    }
+}
+
+bool CeLogin::detectSignatureAlgorithm(const std::vector<uint8_t>& keyParm,
+                                       SignatureAlgorithm& algorithmParm)
+{
+    bool sResult = false;
+    if (keyParm.empty())
+    {
+        return false;
+    }
+
+    // d2i_AutoPrivateKey handles both traditional RSA (PKCS#1) and PKCS#8
+    // encoded keys, so it can detect the algorithm regardless of key type.
+    const uint8_t* sKeyPtr = keyParm.data();
+    EVP_PKEY* sKey =
+        d2i_AutoPrivateKey(NULL, &sKeyPtr, (long)keyParm.size());
+    if (!sKey)
+    {
+        // Fall back to interpreting the bytes as a public key (SubjectPublicKeyInfo).
+        sKeyPtr = keyParm.data();
+        sKey = d2i_PUBKEY(NULL, &sKeyPtr, (long)keyParm.size());
+    }
+
+    if (sKey)
+    {
+        // Note: the algorithm is confirmed from the actual key type; an
+        // unrecognized key (e.g. an ML-DSA key on a build without ML-DSA
+        // support, which would have failed to load above) returns false rather
+        // than being misclassified as RSA.
+#ifdef CELOGIN_MLDSA_SUPPORTED
+        if (1 == EVP_PKEY_is_a(sKey, "ML-DSA-87"))
+        {
+            algorithmParm = SignatureAlgorithm_MlDsa87;
+            sResult = true;
+        }
+        else
+#endif
+            // EVP_PKEY_base_id is available on all supported OpenSSL versions.
+            if (EVP_PKEY_RSA == EVP_PKEY_base_id(sKey))
+        {
+            algorithmParm = SignatureAlgorithm_RsaSha512;
+            sResult = true;
+        }
+        EVP_PKEY_free(sKey);
+    }
+
+    return sResult;
+}
+
 CeLogin::CeLoginRc CeLogin::createCeLoginAcfV1Signature(
-    const CeLoginCreateHsfArgsV1& argsParm,
+    const CeLoginCreateHsfArgsV1& argsParm, const std::string& jsonParm,
     const std::vector<uint8_t>& jsonDigestParm,
     std::vector<uint8_t>& generatedSignatureParm)
 {
     CeLoginRc sRc = CeLoginRc::Success;
-    const uint8_t* sConstPrivateKey = argsParm.mPrivateKey.data();
-    EVP_PKEY* sPrivateKey = d2i_PrivateKey(
-        EVP_PKEY_RSA, NULL, &sConstPrivateKey, argsParm.mPrivateKey.size());
-    // TODO: Verify size matches expected size
-    if (sPrivateKey)
+
+    if (SignatureAlgorithm_MlDsa87 == argsParm.mSignatureAlgorithm)
     {
-        generatedSignatureParm =
-            std::vector<uint8_t>((EVP_PKEY_bits(sPrivateKey) + 7) / 8);
-        size_t sJsonSignatureSize = generatedSignatureParm.size();
-        sRc = createSignature(sPrivateKey, EVP_sha512(),
-                              jsonDigestParm.data(), jsonDigestParm.size(), generatedSignatureParm.data(),
-                              sJsonSignatureSize);
+#ifdef CELOGIN_MLDSA_SUPPORTED
+        const uint8_t* sConstPrivateKey = argsParm.mPrivateKey.data();
+        EVP_PKEY* sPrivateKey = d2i_AutoPrivateKey(
+            NULL, &sConstPrivateKey, (long)argsParm.mPrivateKey.size());
+        if (sPrivateKey && 1 == EVP_PKEY_is_a(sPrivateKey, "ML-DSA-87"))
+        {
+            // Determine the signature size, then generate the signature over
+            // the full JSON message (ML-DSA is not a pre-hash scheme).
+            size_t sJsonSignatureSize = EVP_PKEY_get_size(sPrivateKey);
+            generatedSignatureParm = std::vector<uint8_t>(sJsonSignatureSize);
+            sRc = createSignatureMLDSA(
+                sPrivateKey, (const uint8_t*)jsonParm.data(), jsonParm.size(),
+                generatedSignatureParm.data(), sJsonSignatureSize);
+            if (CeLoginRc::Success == sRc)
+            {
+                generatedSignatureParm.resize(sJsonSignatureSize);
+            }
+        }
+        else
+        {
+            std::cout << "ERROR: Private key is not a valid ML-DSA-87 key"
+                      << std::endl;
+            sRc = CeLoginRc::Failure;
+        }
+        if (sPrivateKey)
+        {
+            EVP_PKEY_free(sPrivateKey);
+        }
+#else
+        std::cout << "ERROR: ML-DSA-87 signing is not supported in this build "
+                     "(requires OpenSSL 3.5+)"
+                  << std::endl;
+        sRc = CeLoginRc::Failure;
+#endif // CELOGIN_MLDSA_SUPPORTED
     }
     else
     {
-        std::cout << "Huh, that's odd V1... " << std::endl;
-        sRc = CeLoginRc::Failure;
-    }
+        const uint8_t* sConstPrivateKey = argsParm.mPrivateKey.data();
+        EVP_PKEY* sPrivateKey = d2i_PrivateKey(
+            EVP_PKEY_RSA, NULL, &sConstPrivateKey, argsParm.mPrivateKey.size());
+        // TODO: Verify size matches expected size
+        if (sPrivateKey)
+        {
+            generatedSignatureParm =
+                std::vector<uint8_t>((EVP_PKEY_bits(sPrivateKey) + 7) / 8);
+            size_t sJsonSignatureSize = generatedSignatureParm.size();
+            sRc = createSignature(sPrivateKey, EVP_sha512(),
+                                  jsonDigestParm.data(), jsonDigestParm.size(),
+                                  generatedSignatureParm.data(),
+                                  sJsonSignatureSize);
+        }
+        else
+        {
+            std::cout << "Huh, that's odd V1... " << std::endl;
+            sRc = CeLoginRc::Failure;
+        }
 
-    if (sPrivateKey)
-    {
-        EVP_PKEY_free(sPrivateKey);
+        if (sPrivateKey)
+        {
+            EVP_PKEY_free(sPrivateKey);
+        }
     }
 
     if (sRc != CeLoginRc::Success)
@@ -325,12 +439,16 @@ CeLogin::CeLoginRc
                         argsParm.mSourceFileName.size());
         ASN1_OCTET_STRING_set(sHsfStruct->sourceFileData,
                               (const uint8_t*)jsonParm.data(), jsonParm.size());
-        sHsfStruct->algorithm->id = OBJ_nid2obj(CeLogin::CeLogin_Acf_NID);
+        sHsfStruct->algorithm->id = OBJ_nid2obj(
+            getNidForSignatureAlgorithm(argsParm.mSignatureAlgorithm));
         ASN1_BIT_STRING_set(sHsfStruct->signature,
                             (uint8_t*)signatureParm.data(),
                             signatureParm.size());
 
-        std::vector<uint8_t> sHsfDerEncoded(4096);
+        // The encoded buffer must accommodate the largest supported signature.
+        // An ML-DSA-87 signature alone is 4627 bytes, exceeding the legacy
+        // 4096-byte RSA sizing.
+        std::vector<uint8_t> sHsfDerEncoded(CeLogin_MaxAsn1AcfSize);
         uint8_t* sDataPtr = sHsfDerEncoded.data();
         uint64_t sHsfDerEncodedLength =
             i2d_CELoginSequenceV1(sHsfStruct, &sDataPtr);
@@ -370,8 +488,8 @@ CeLogin::CeLoginRc
 
     if (CeLoginRc::Success == sRc)
     {
-        sRc =
-            createCeLoginAcfV1Signature(argsParm, sJsonDigest, sJsonSignature);
+        sRc = createCeLoginAcfV1Signature(argsParm, sJsonString, sJsonDigest,
+                                          sJsonSignature);
     }
 
     if (CeLoginRc::Success == sRc)

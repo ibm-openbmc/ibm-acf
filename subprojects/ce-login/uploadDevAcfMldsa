@@ -1,0 +1,121 @@
+#!/bin/bash
+# Script to generate an ML-DSA-87 (FIPS 204) development signed ACF and upload
+# it to the BMC provided.
+#
+# This is the ML-DSA-87 counterpart to uploadDevAcf (which produces an
+# RSA-2048/SHA-512 signed ACF). The only functional differences are the signing
+# key (an ML-DSA-87 private key) and the processor architecture (P11); the
+# celogin_cli `create` command auto-detects the signature algorithm from the
+# supplied key type.
+#
+# NOTE: The target BMC must support ML-DSA-87 ACF verification (firmware built
+#       with OpenSSL 3.5+ and the matching ML-DSA-87 public key embedded). An
+#       older BMC will reject the uploaded ACF as an unsupported algorithm.
+
+
+MYPATH=$(dirname $(readlink -f $(which $0)));
+BMC="$1"
+PASSWD="$2"
+ITERATIONS="$3"
+ADMINID=admin
+ACF=/tmp/${USER}_$$.acf
+
+if [ "X${BMC}" = "X" ] ; then
+    echo "uploadDevAcfMldsa <BMC IP> [<BMC PASSWD>] [<PBKDF2 iterations>]"
+    exit 1
+fi
+
+if [ "X${PASSWD}" = "X" ]; then
+    PASSWD="0penBmc"
+fi
+
+if [ "X${ITERATIONS}" = "X" ]; then
+    # celogin_cli will use a default value for iterations if no value is
+    # provided
+    ITERATIONS=""
+else
+    ITERATIONS="-n ${ITERATIONS}"
+fi
+
+# ML-DSA-87 is the Power12 signing algorithm.
+ARCH="P12"
+if [ $ARCH = "P12" ]; then
+    SIGNINGKEY=$MYPATH/p12-celogin-lab-pkey.der
+else
+    echo "**** ERROR : Unsupported processor architecture : $ARCH"
+    exit 1
+fi
+
+if [ ! -e "${SIGNINGKEY}" ]; then
+    echo "**** ERROR : ML-DSA-87 signing key not found : ${SIGNINGKEY}"
+    echo "             Generate one with:"
+    echo "               openssl genpkey -algorithm ML-DSA-87 -outform DER -out ${SIGNINGKEY}"
+    exit 1
+fi
+
+echo "Generating and installing an ML-DSA-87 development signed ACF to : $BMC"
+
+## Fetch our credential token
+TOKEN=`curl -k -H "Content-Type: application/json" -X POST https://${BMC}/login -d '{"username" :  "'${ADMINID}'", "password" :  "'${PASSWD}'"}' 2>/dev/null | grep token | awk '{print $2;}' | tr -d '"'`
+if [ "X${TOKEN}" = "X" ]; then
+    echo "**** ERROR : Unable to login to BMC with admin credentials"
+    exit 1
+fi
+
+## Fetch the system serial number
+SERIAL=`curl  -k -H "X-Auth-Token: $TOKEN" -X GET  https://${BMC}/redfish/v1/Systems/system 2>/dev/null |grep "SerialNumber" | awk -F\" '{print $4;}'`
+if [ "X${SERIAL}" = "X" ]; then
+    # In some cases the BMC can't read the serial so we will default to UNSET
+    #   "Message": "The request failed due to an internal service error.  The service is still operational.",
+    curl  -k -H "X-Auth-Token: $TOKEN" -X GET  https://${BMC}/redfish/v1/Systems/system 2>/dev/null |grep "The request failed" > /dev/null
+    if [ $? == 0 ]; then
+        echo "**** ERROR : Unable to retrieve system serial from BMC, attempting UNSET"
+        SERIAL="UNSET"
+    else
+        echo "**** ERROR : Unable to retrieve system serial from BMC"
+        curl  -k -H "X-Auth-Token: $TOKEN" -X GET  https://${BMC}/redfish/v1/Systems/system 2>/dev/null
+        exit 1
+    fi
+elif [ "${SERIAL}" = "       " ]; then
+    echo "**** NOTE: Saw blank serial, using UNSET serial keyword"
+    SERIAL="UNSET"
+fi
+
+echo "Found system serial : $SERIAL"
+
+## Generate ACF
+echo "Generating ACF to ${ACF} ..."
+# Look for CLI in same dir as this script
+CESCRIPT=$MYPATH/celogin_cli
+# Otherwise look in build directory
+if [ -e $MYPATH/build/celogin_cli ]; then
+    CESCRIPT=$MYPATH/build/celogin_cli
+fi
+
+$CESCRIPT create -m "${ARCH},dev,${SERIAL}" -p "${PASSWD}" -e 2035-01-01 -k ${SIGNINGKEY} -o ${ACF} ${ITERATIONS}
+if [ $? != 0 ]; then
+    echo "**** ERROR : Unable to create the ACF"
+    exit 1
+fi
+
+## Upload the ACF
+service_acf_base64=$(base64 -w 0 -i ${ACF})
+OUTPUT=`curl  -k -H "X-Auth-Token: $TOKEN" -H "Content-Type: application/json" -X PATCH -d '{"Oem":{"IBM":{"ACF":{"ACFFile":"'${service_acf_base64}'"}}}}' https://${BMC}/redfish/v1/AccountService/Accounts/service 2>/dev/null`
+
+if [[ $OUTPUT = *'"ACFInstalled": true'* ]]; then
+    echo "ACF successfully installed to ${BMC}"
+else
+    echo "**** ERROR : Failures found while attempting to install the ACF to ${BMC}"
+    echo
+    echo ${OUTPUT}
+    rm -f ${ACF}
+    exit 1
+fi
+
+## Logout
+curl -k -H "X-Auth-Token: $TOKEN" -X POST https://${BMC}/logout >/dev/null 2>&1
+
+## Cleanup
+rm -f ${ACF}
+exit 0
+

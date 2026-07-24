@@ -59,6 +59,7 @@ CeLoginRc
 
 CeLoginRc
     createCeLoginAcfV2Signature(const CeLoginCreateHsfArgsV2& argsParm,
+                                const std::string& jsonParm,
                                 const std::vector<uint8_t>& jsonDigestParm,
                                 std::vector<uint8_t>& generatedSignatureParm);
 

@@ -91,7 +91,7 @@ void setSerialNumberProperty(const string& obj)
 #else
 int readFieldMode(pam_handle_t* pamh)
 {
-    FILE* pipe = popen("fw_printenv -n fieldmode 2>&1", "r");
+    FILE* pipe = popen("/usr/sbin/fw_printenv -n fieldmode 2>&1", "r");
     if (!pipe)
     {
         pam_syslog(pamh, LOG_ERR, "popen failed\n");

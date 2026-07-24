@@ -150,28 +150,12 @@ CeLogin::CeLoginRc CeLogin::decodeAndVerifyAcf(
     EVP_PKEY* sPublicKey = NULL;
     uint8_t sHashReceivedJson[CeLogin_DigestLength];
 
-    ASN1_OBJECT* sExpectedObject = NULL;
+    // Signature algorithm OID embedded in the ACF (resolved after decode).
+    int sAcfSignatureNid = NID_undef;
 
     if (!accessControlFileParm || !publicKeyParm)
     {
         sRc = CeLoginRc::VerifyAcf_InvalidParm;
-    }
-
-    if (CeLoginRc::Success == sRc)
-    {
-        // Validate the NID stored within the ASN.1 structure. This indicates
-        // both the Digest algorithm and the Signature algorithm. It is
-        // different from the NID provided to OpenSSL when performing the
-        // sign/verify routine.
-
-        // Returns pointer to a static definition of the object identifier.
-        // Returns NULL on failure.
-        sExpectedObject = OBJ_nid2obj(CeLogin_Acf_NID);
-        if (!sExpectedObject)
-        {
-            CE_LOG_DEBUG("Failed to get NID");
-            sRc = CeLoginRc::VerifyAcf_Nid2OidFailed;
-        }
     }
 
     if (CeLoginRc::Success == sRc)
@@ -193,12 +177,21 @@ CeLogin::CeLoginRc CeLogin::decodeAndVerifyAcf(
         }
     }
 
-    // Verify supported OID/signature algorithm
+    // Verify supported OID/signature algorithm. The OID embedded in the ASN.1
+    // structure selects the signature algorithm: legacy ACFs use
+    // sha512WithRSAEncryption, ML-DSA ACFs use id-ml-dsa-87. The ACF is
+    // self-describing so the verification path is chosen from this field.
     if (CeLoginRc::Success == sRc)
     {
-        // If the two are identical 0 is returned
-        if (0 != OBJ_cmp(sExpectedObject, decodedAsnParm->algorithm->id))
+        sAcfSignatureNid = OBJ_obj2nid(decodedAsnParm->algorithm->id);
+        if (CeLogin_Acf_RSA_NID != sAcfSignatureNid
+#ifdef CELOGIN_MLDSA_SUPPORTED
+            && CeLogin_Acf_MLDSA87_NID != sAcfSignatureNid
+#endif
+        )
         {
+            // An ML-DSA ACF presented to a build without ML-DSA support lands
+            // here and is rejected as an unsupported algorithm.
             sRc = CeLoginRc::VerifyAcf_OidMismatchFailure;
         }
     }
@@ -216,7 +209,9 @@ CeLogin::CeLoginRc CeLogin::decodeAndVerifyAcf(
         }
     }
 
-    if (CeLoginRc::Success == sRc)
+    // For RSA the signature is over a SHA-512 digest of the JSON. ML-DSA signs
+    // the JSON message directly, so no external digest is computed.
+    if (CeLoginRc::Success == sRc && CeLogin_Acf_RSA_NID == sAcfSignatureNid)
     {
         // returns a pointer to the hash value on success, NULL on failure
         // hash of the data, not the hash authcode
@@ -235,13 +230,46 @@ CeLogin::CeLoginRc CeLogin::decodeAndVerifyAcf(
         }
     }
 
+#ifdef CELOGIN_MLDSA_SUPPORTED
+    // Verify that the supplied public key matches the algorithm declared in the
+    // ACF. This prevents a mismatch where the OID claims one algorithm but a key
+    // of a different type is supplied. (EVP_PKEY_is_a requires OpenSSL 3.0+,
+    // which is implied by ML-DSA support.)
+    if (CeLoginRc::Success == sRc)
+    {
+        if (CeLogin_Acf_MLDSA87_NID == sAcfSignatureNid &&
+            1 != EVP_PKEY_is_a(sPublicKey, "ML-DSA-87"))
+        {
+            sRc = CeLoginRc::VerifyAcf_OidMismatchFailure;
+        }
+        else if (CeLogin_Acf_RSA_NID == sAcfSignatureNid &&
+                 1 != EVP_PKEY_is_a(sPublicKey, "RSA"))
+        {
+            sRc = CeLoginRc::VerifyAcf_OidMismatchFailure;
+        }
+    }
+#endif // CELOGIN_MLDSA_SUPPORTED
+
     // Verify signature over SourceFileData
     if (CeLoginRc::Success == sRc)
     {
-        sRc = verifySignature(sPublicKey, EVP_sha512(),
-                              decodedAsnParm->signature->data,
-                              decodedAsnParm->signature->length,
-                              sHashReceivedJson, sizeof(sHashReceivedJson));
+#ifdef CELOGIN_MLDSA_SUPPORTED
+        if (CeLogin_Acf_MLDSA87_NID == sAcfSignatureNid)
+        {
+            sRc = verifySignatureMLDSA(sPublicKey,
+                                       decodedAsnParm->signature->data,
+                                       decodedAsnParm->signature->length,
+                                       decodedAsnParm->sourceFileData->data,
+                                       decodedAsnParm->sourceFileData->length);
+        }
+        else
+#endif // CELOGIN_MLDSA_SUPPORTED
+        {
+            sRc = verifySignature(sPublicKey, EVP_sha512(),
+                                  decodedAsnParm->signature->data,
+                                  decodedAsnParm->signature->length,
+                                  sHashReceivedJson, sizeof(sHashReceivedJson));
+        }
     }
     if (sPublicKey)
     {
@@ -501,6 +529,18 @@ CeLogin::CeLoginRc CeLogin::getServiceAuthorityFromFrameworkEc(
         {
             authParm = ServiceAuth_CE;
         }
+        else if (frameworkEcLengthParm == strlen(FrameworkEc_P12_Dev) &&
+                 0 == memcmp(frameworkEcParm, FrameworkEc_P12_Dev,
+                             frameworkEcLengthParm))
+        {
+            authParm = ServiceAuth_Dev;
+        }
+        else if (frameworkEcLengthParm == strlen(FrameworkEc_P12_Service) &&
+                 0 == memcmp(frameworkEcParm, FrameworkEc_P12_Service,
+                             frameworkEcLengthParm))
+        {
+            authParm = ServiceAuth_CE;
+        }
         else
         {
             sRc = CeLoginRc::GetAuthFromFrameworkEc_InvalidFrameworkEc;
@@ -606,6 +646,81 @@ CeLogin::CeLoginRc CeLogin::verifySignature(EVP_PKEY* publicKeyParm,
     }
     return sRc;
 }
+
+#ifdef CELOGIN_MLDSA_SUPPORTED
+CeLogin::CeLoginRc CeLogin::createSignatureMLDSA(
+    EVP_PKEY* privateKeyParm, const uint8_t* messageParm,
+    size_t messageLengthParm, uint8_t* generatedSignatureParm,
+    size_t& signatureSizeParm)
+{
+    CeLoginRc sRc = CeLoginRc::Success;
+    int sResult = 1;
+
+    EVP_MD_CTX* sCtx = EVP_MD_CTX_new();
+    if (!sCtx)
+    {
+        sResult = 0;
+    }
+    if (1 == sResult)
+    {
+        // ML-DSA is not a pre-hash scheme: the digest type is NULL and the full
+        // message is provided to the one-shot EVP_DigestSign call.
+        sResult = EVP_DigestSignInit(sCtx, NULL, NULL, NULL, privateKeyParm);
+    }
+    if (1 == sResult)
+    {
+        sResult = EVP_DigestSign(sCtx, generatedSignatureParm,
+                                 &signatureSizeParm, messageParm,
+                                 messageLengthParm);
+    }
+    if (1 != sResult)
+    {
+        sRc = CeLoginRc::Failure;
+    }
+    if (sCtx)
+    {
+        EVP_MD_CTX_free(sCtx);
+    }
+    return sRc;
+}
+
+CeLogin::CeLoginRc CeLogin::verifySignatureMLDSA(
+    EVP_PKEY* publicKeyParm, const uint8_t* signatureParm,
+    size_t signatureLengthParm, const uint8_t* messageParm,
+    size_t messageLengthParm)
+{
+    CeLoginRc sRc = CeLoginRc::Success;
+    int sVerifyResult = 1;
+
+    EVP_MD_CTX* sCtx = EVP_MD_CTX_new();
+    if (!sCtx)
+    {
+        sVerifyResult = 0;
+    }
+    if (1 == sVerifyResult)
+    {
+        // ML-DSA is not a pre-hash scheme: the digest type is NULL and the full
+        // message is provided to the one-shot EVP_DigestVerify call.
+        sVerifyResult =
+            EVP_DigestVerifyInit(sCtx, NULL, NULL, NULL, publicKeyParm);
+    }
+    if (1 == sVerifyResult)
+    {
+        sVerifyResult =
+            EVP_DigestVerify(sCtx, signatureParm, signatureLengthParm,
+                             messageParm, messageLengthParm);
+    }
+    if (1 != sVerifyResult)
+    {
+        sRc = CeLoginRc::SignatureNotValid;
+    }
+    if (sCtx)
+    {
+        EVP_MD_CTX_free(sCtx);
+    }
+    return sRc;
+}
+#endif // CELOGIN_MLDSA_SUPPORTED
 
 CeLogin::CeLoginRc CeLogin::base64Decode(const char* inputParm,
                                          const size_t inputLenParm,

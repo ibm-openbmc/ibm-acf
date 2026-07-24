@@ -15,6 +15,7 @@ namespace cli
         Invalid = 0,
         P10     = 10,
         P11     = 11,
+        P12     = 12,
     };
 
     struct Machine

@@ -162,6 +162,17 @@ CeLoginRc CeLogin::createCeLoginAcfV2Payload(
                         sFrameworkEcStr = FrameworkEc_P11_Service;
                     }
                 }
+                else if (cli::P12 == sArgsV1.mMachines[sIdx].mProc)
+                {
+                    if (ServiceAuth_Dev == sArgsV1.mMachines[sIdx].mAuth)
+                    {
+                        sFrameworkEcStr = FrameworkEc_P12_Dev;
+                    }
+                    else if (ServiceAuth_CE == sArgsV1.mMachines[sIdx].mAuth)
+                    {
+                        sFrameworkEcStr = FrameworkEc_P12_Service;
+                    }
+                }
 
                 json_object* sFrameworkEc =
                     json_object_new_string(sFrameworkEcStr.c_str());
@@ -358,86 +369,14 @@ CeLoginRc CeLogin::createCeLoginAcfV2Payload(
 }
 
 CeLogin::CeLoginRc CeLogin::createCeLoginAcfV2Signature(
-    const CeLoginCreateHsfArgsV2& argsParm,
+    const CeLoginCreateHsfArgsV2& argsParm, const std::string& jsonParm,
     const std::vector<uint8_t>& jsonDigestParm,
     std::vector<uint8_t>& generatedSignatureParm)
 {
-    CeLoginRc sRc = CeLoginRc::Success;
-
-    const CeLoginCreateHsfArgsV1& sArgsV1 = argsParm.mV1Args;
-
-    const uint8_t* sConstPrivateKey = sArgsV1.mPrivateKey.data();
-    EVP_PKEY* sPrivateKey = d2i_PrivateKey(
-        EVP_PKEY_RSA, NULL, &sConstPrivateKey, sArgsV1.mPrivateKey.size());
-    // TODO: Verify size matches expected size
-    if (sPrivateKey)
-    {
-        size_t sJsonSignatureSize = 0;
-        generatedSignatureParm =
-            std::vector<uint8_t>((EVP_PKEY_bits(sPrivateKey) + 7) / 8);
-        EVP_PKEY_CTX* sCtx = EVP_PKEY_CTX_new(sPrivateKey, NULL);
-        int sResult = 1;
-        if (!sCtx)
-        {
-            sResult = 0;
-        }
-        if (1 == sResult)
-        {
-            sResult = EVP_PKEY_sign_init(sCtx);
-        }
-        if (1 == sResult)
-        {
-            sResult = EVP_PKEY_CTX_set_rsa_padding(sCtx, RSA_PKCS1_PADDING);
-        }
-        if (1 == sResult)
-        {
-            sResult = EVP_PKEY_CTX_set_signature_md(sCtx, EVP_sha512());
-        }
-        if (1 == sResult)
-        {
-            // This call calculates the final signature length
-            sResult =
-                EVP_PKEY_sign(sCtx, NULL, &sJsonSignatureSize,
-                              jsonDigestParm.data(), jsonDigestParm.size());
-            if ((1 == sResult) &&
-                (generatedSignatureParm.size() == sJsonSignatureSize))
-            {
-                // This call creates the signature
-                sResult = EVP_PKEY_sign(
-                    sCtx, generatedSignatureParm.data(), &sJsonSignatureSize,
-                    jsonDigestParm.data(), jsonDigestParm.size());
-            }
-            else
-            {
-                sResult = 0;
-            }
-        }
-        if (1 != sResult)
-        {
-            sRc = CeLoginRc::Failure;
-        }
-        if (sCtx)
-        {
-            EVP_PKEY_CTX_free(sCtx);
-        }
-    }
-    else
-    {
-        sRc = CeLoginRc::Failure;
-        std::cout << "huh, that's odd" << std::endl;
-    }
-
-    if (sPrivateKey)
-    {
-        EVP_PKEY_free(sPrivateKey);
-    }
-
-    if (sRc != CeLoginRc::Success)
-    {
-        generatedSignatureParm.clear();
-    }
-
-    return sRc;
+    // The V1 helper handles both the RSA (digest) and ML-DSA (message) signing
+    // paths based on argsParm.mV1Args.mSignatureAlgorithm.
+    return createCeLoginAcfV1Signature(argsParm.mV1Args, jsonParm,
+                                       jsonDigestParm, generatedSignatureParm);
 }
 
 CeLogin::CeLoginRc
@@ -469,12 +408,16 @@ CeLogin::CeLoginRc
                         sArgsV1.mSourceFileName.size());
         ASN1_OCTET_STRING_set(sHsfStruct->sourceFileData,
                               (const uint8_t*)jsonParm.data(), jsonParm.size());
-        sHsfStruct->algorithm->id = OBJ_nid2obj(CeLogin::CeLogin_Acf_NID);
+        sHsfStruct->algorithm->id = OBJ_nid2obj(
+            getNidForSignatureAlgorithm(sArgsV1.mSignatureAlgorithm));
         ASN1_BIT_STRING_set(sHsfStruct->signature,
                             (uint8_t*)signatureParm.data(),
                             signatureParm.size());
 
-        std::vector<uint8_t> sHsfDerEncoded(4096);
+        // The encoded buffer must accommodate the largest supported signature.
+        // An ML-DSA-87 signature alone is 4627 bytes, exceeding the legacy
+        // 4096-byte RSA sizing.
+        std::vector<uint8_t> sHsfDerEncoded(CeLogin_MaxAsn1AcfSize);
         uint8_t* sDataPtr = sHsfDerEncoded.data();
         uint64_t sHsfDerEncodedLength =
             i2d_CELoginSequenceV1(sHsfStruct, &sDataPtr);
@@ -515,7 +458,8 @@ CeLogin::CeLoginRc
     if (CeLoginRc::Success == sRc)
     {
         sRc =
-            createCeLoginAcfV2Signature(argsParm, sJsonDigest, sJsonSignature);
+            createCeLoginAcfV2Signature(argsParm, sJsonString, sJsonDigest,
+                                        sJsonSignature);
     }
 
     if (CeLoginRc::Success == sRc)
