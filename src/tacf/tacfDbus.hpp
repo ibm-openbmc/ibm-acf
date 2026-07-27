@@ -66,8 +66,8 @@ class TacfDbus
 
         PropertyVariant message;
 
-        if (dbusGetProperty("xyz.openbmc_project.Software.BMC.Updater",
-                            "/xyz/openbmc_project/software",
+        if (dbusGetProperty("xyz.openbmc_project.Software.Manager",
+                            "/xyz/openbmc_project/software/bmc",
                             "xyz.openbmc_project.Control.FieldMode",
                             "FieldModeEnabled", message))
         {
