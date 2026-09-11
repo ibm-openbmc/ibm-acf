@@ -4,7 +4,7 @@
 #
 # This is the ML-DSA-87 counterpart to uploadDevAcf (which produces an
 # RSA-2048/SHA-512 signed ACF). The only functional differences are the signing
-# key (an ML-DSA-87 private key) and the processor architecture (P11); the
+# key (an ML-DSA-87 private key) and the processor architecture (P12); the
 # celogin_cli `create` command auto-detects the signature algorithm from the
 # supplied key type.
 #
