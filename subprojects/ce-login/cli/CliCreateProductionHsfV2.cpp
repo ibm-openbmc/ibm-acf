@@ -113,7 +113,11 @@ string options_description[NOptOptions] = {
     "File containing an ASCII-encoded BMC shellscript or resource dump string",
     "Timeout in seconds for the provided BMC shell script to run",
     "Tell the BMC to issue a BMC dump along with running the ACF",
+#ifdef CELOGIN_MLDSA_SUPPORTED
     "<rsa2048,mldsa87> - signature algorithm (optional, default rsa2048)",
+#else
+    "<rsa2048> - signature algorithm (optional, default rsa2048)",
+#endif
     "Help",
     "Verbose"};
 
@@ -369,7 +373,6 @@ CeLoginRc cli::createProductionHsfV2(int argc, char** argv)
     else if (sOperation == CreateJsonAndDigest)
     {
         string sJson;
-        vector<uint8_t> sHash;
         const bool sIsPasswordRequired =
             (CeLogin::AcfType_BmcShell != sAcfType &&
              CeLogin::AcfType_ResourceDump != sAcfType);
@@ -443,9 +446,31 @@ CeLoginRc cli::createProductionHsfV2(int argc, char** argv)
 
             if (sScriptFileReadSuccess && CeLoginRc::Success == sRc)
             {
-                sRc = CeLogin::createCeLoginAcfV2Payload(sCreateHsfArgsV2,
-                                                         sJson, sHash);
+                sRc =
+                    CeLogin::createCeLoginAcfV2Payload(sCreateHsfArgsV2, sJson);
             }
+        }
+
+        // Pure ML-DSA signs the payload itself, so the whole ACF has to fit
+        // through the signing server. Fail here with the actual sizes rather
+        // than letting the signing request be rejected remotely, where the
+        // cause is not visible to the requester.
+        if (CeLoginRc::Success == sRc &&
+            CeLogin::SignatureAlgorithm_MlDsa87 ==
+                sCreateHsfArgsV1.mSignatureAlgorithm &&
+            sJson.length() >
+                (size_t)CeLogin::CeLogin_MaxMlDsaSigningPayloadSize)
+        {
+            cerr << "ERROR: ACF payload is " << sJson.length()
+                 << " bytes, over the "
+                 << (int)CeLogin::CeLogin_MaxMlDsaSigningPayloadSize
+                 << "-byte signing server limit for ML-DSA." << endl;
+            cerr << "       ML-DSA signs the payload itself, so the entire ACF "
+                    "must fit."
+                 << endl;
+            cerr << "       Reduce the machine count or the script size."
+                 << endl;
+            sRc = CeLoginRc::Failure;
         }
 
         if (CeLoginRc::Success == sRc)
@@ -464,8 +489,16 @@ CeLoginRc cli::createProductionHsfV2(int argc, char** argv)
             // Digest Output is not required
             if (!sArgs.mJsonDigestPath.empty())
             {
-                if (writeBinaryFile(sArgs.mJsonDigestPath,
-                                    (const uint8_t*)sHash.data(), sHash.size()))
+                vector<uint8_t> sHash;
+                if (CeLoginRc::Success !=
+                    CeLogin::createCeLoginAcfPayloadDigest(sJson, sHash))
+                {
+                    cout << "Error creating digest" << endl;
+                    sRc = CeLoginRc::Failure;
+                }
+                else if (writeBinaryFile(sArgs.mJsonDigestPath,
+                                         (const uint8_t*)sHash.data(),
+                                         sHash.size()))
                 {
                     cout << "Wrote: " << sArgs.mJsonDigestPath << endl;
                 }

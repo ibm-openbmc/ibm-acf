@@ -38,6 +38,23 @@ enum
     // plus the JSON payload and ASN.1 framing, which exceeds the legacy
     // 4096-byte RSA sizing.
     CeLogin_MaxAsn1AcfSize = 16384,
+
+    // Largest JSON payload the production signing server will accept.
+    //
+    // Pure ML-DSA signs the message itself rather than a digest, so the entire
+    // ACF payload has to cross the signing interface. RSA is unaffected: it
+    // signs a 64-byte SHA-512 digest no matter how large the payload is.
+    //
+    // The payload is currently bounded well below this by
+    // MaxAsciiScriptFileLength and CeLogin_MaxNumberOfJsonTokens, but neither
+    // was chosen with this limit in mind. Raising either one can push the
+    // payload past it, which is why the check exists rather than relying on
+    // those caps to hold.
+    //
+    // Raise this only when the signing server's own limit is raised. Removing
+    // the constraint outright requires ExternalMu-ML-DSA, which submits a fixed
+    // 64-byte message representative in place of the payload.
+    CeLogin_MaxMlDsaSigningPayloadSize = 3072,
 };
 
 struct CeLoginCreateHsfArgsV1
@@ -81,15 +98,21 @@ struct CeLoginDecryptedHsfArgsV1
 CeLoginRc createCeLoginAcfV1(const CeLoginCreateHsfArgsV1& argsParm,
                              std::vector<uint8_t>& generatedAcfParm);
 
-CeLoginRc
-    createCeLoginAcfV1Payload(const CeLoginCreateHsfArgsV1& argsParm,
-                              std::string& generatedAcfParm,
-                              std::vector<uint8_t>& generatedPayloadHashParm);
+CeLoginRc createCeLoginAcfV1Payload(const CeLoginCreateHsfArgsV1& argsParm,
+                                    std::string& generatedAcfParm);
 
+// SHA-512 digest over the JSON payload. This is what gets signed for RSA; it is
+// exposed so the production flow can hand it to an external signer.
+CeLoginRc
+    createCeLoginAcfPayloadDigest(const std::string& jsonParm,
+                                  std::vector<uint8_t>& generatedDigestParm);
+
+// Signs the JSON payload using argsParm.mSignatureAlgorithm. RSA signs a
+// SHA-512 digest of the payload (computed internally); ML-DSA signs the payload
+// directly.
 CeLoginRc
     createCeLoginAcfV1Signature(const CeLoginCreateHsfArgsV1& argsParm,
                                 const std::string& jsonParm,
-                                const std::vector<uint8_t>& jsonDigestParm,
                                 std::vector<uint8_t>& generatedSignatureParm);
 
 CeLoginRc createCeLoginAcfV1Asn1(const CeLoginCreateHsfArgsV1& argsParm,
