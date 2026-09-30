@@ -103,7 +103,8 @@ class TacfSpw
         }
 
         spwd* spwDbEntry;
-        spwd spwEntry;
+        spwd spwEntry = {};
+        bool found = false;
 
         // Read each shadow password entry.
         while ((spwDbEntry = fgetspent(spwFileRead)))
@@ -115,14 +116,18 @@ class TacfSpw
                 spwEntry.sp_namp   = (char*)name.c_str();
                 spwEntry.sp_pwdp   = (char*)spw.c_str();
                 spwEntry.sp_lstchg = 0;
+                found = true;
                 continue;
             }
             // Write shadow password entry to shadow password file.
             putspent(spwDbEntry, spwFile);
         }
 
-        // Write updated user entry to shadow password file.
-        rc = putspent(&spwEntry, spwFile);
+        // Write updated user entry only if found in the flat shadow file.
+        if (found)
+        {
+            rc = putspent(&spwEntry, spwFile);
+        }
 
         // Close the read file handle.
         fclose(spwFileRead);

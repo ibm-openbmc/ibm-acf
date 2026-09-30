@@ -46,6 +46,7 @@ struct Arguments
     string mJsonDigestPath;
     string mType;
     string mScriptFile;
+    string mAlgorithm;
     uint64_t mBmcTimeout;
     bool mIssueBmcDump;
     bool mNoReplayId;
@@ -73,6 +74,7 @@ enum OptOptions
     ScriptFile,
     BmcTimeout,
     IssueBmcDump,
+    Algorithm,
     Verbose,
     Help,
     NOptOptions
@@ -92,12 +94,13 @@ struct option long_options[NOptOptions + 1] = {
     {"scriptFile", required_argument, NULL, 'f'},
     {"bmcTimeout", required_argument, NULL, 'b'},
     {"issueBmcDump", no_argument, NULL, 'i'},
+    {"algorithm", required_argument, NULL, 'a'},
     {"verbose", no_argument, NULL, 'v'},
     {"help", no_argument, NULL, 'h'},
     {0, 0, 0, 0}};
 
 string options_description[NOptOptions] = {
-    "<processor gen (P10,P11)>,<authority (dev,ce)>,<7-char serial number|UNSET>",
+    "<processor gen (P10,P11,P12)>,<authority (dev,ce)>,<7-char serial number|UNSET>",
     "ACF expiration date in the format: \"YYYY-MM-DD\"",
     "Path/file to write generated password into",
     "Comment to embed in ACF asn1. Written into the \"SourceFileName\" field",
@@ -110,6 +113,11 @@ string options_description[NOptOptions] = {
     "File containing an ASCII-encoded BMC shellscript or resource dump string",
     "Timeout in seconds for the provided BMC shell script to run",
     "Tell the BMC to issue a BMC dump along with running the ACF",
+#ifdef CELOGIN_MLDSA_SUPPORTED
+    "<rsa2048,mldsa87> - signature algorithm (optional, default rsa2048)",
+#else
+    "<rsa2048> - signature algorithm (optional, default rsa2048)",
+#endif
     "Help",
     "Verbose"};
 
@@ -221,6 +229,10 @@ void parseArgs(int argc, char** argv, struct Arguments& args)
         {
             args.mIssueBmcDump = true;
         }
+        else if (c == long_options[Algorithm].val)
+        {
+            args.mAlgorithm = optarg;
+        }
         else if (c == long_options[Help].val)
         {
             args.mHelp = true;
@@ -318,6 +330,35 @@ CeLoginRc cli::createProductionHsfV2(int argc, char** argv)
     CeLoginCreateHsfArgsV2 sCreateHsfArgsV2;
     CeLoginCreateHsfArgsV1& sCreateHsfArgsV1 = sCreateHsfArgsV2.mV1Args;
 
+    // The signature algorithm is optional and defaults to the legacy RSA
+    // behavior. It only affects the ASN.1 OID written during packaging; the
+    // signature itself is produced externally (e.g. by the signing server).
+    sCreateHsfArgsV1.mSignatureAlgorithm = CeLogin::SignatureAlgorithm_RsaSha512;
+    if (!sArgs.mAlgorithm.empty())
+    {
+        if (sArgs.mAlgorithm == "mldsa87")
+        {
+#ifdef CELOGIN_MLDSA_SUPPORTED
+            sCreateHsfArgsV1.mSignatureAlgorithm =
+                CeLogin::SignatureAlgorithm_MlDsa87;
+#else
+            cerr << "ML-DSA-87 is not supported in this build "
+                    "(requires OpenSSL 3.5+)"
+                 << endl;
+            cout << "RC: " << std::hex << (int)CeLoginRc::Failure << endl;
+            return CeLoginRc::Failure;
+#endif
+        }
+        else if (sArgs.mAlgorithm != "rsa2048")
+        {
+            cerr << "Unknown signature algorithm: " << sArgs.mAlgorithm
+                 << " (expected rsa2048 or mldsa87)" << endl;
+            sArgs.mHelp = false;
+            cout << "RC: " << std::hex << (int)CeLoginRc::Failure << endl;
+            return CeLoginRc::Failure;
+        }
+    }
+
     if (sArgs.mHelp)
     {
         cli::printHelp(argv[0], argv[1], paragraph_description, long_options,
@@ -332,7 +373,6 @@ CeLoginRc cli::createProductionHsfV2(int argc, char** argv)
     else if (sOperation == CreateJsonAndDigest)
     {
         string sJson;
-        vector<uint8_t> sHash;
         const bool sIsPasswordRequired =
             (CeLogin::AcfType_BmcShell != sAcfType &&
              CeLogin::AcfType_ResourceDump != sAcfType);
@@ -406,9 +446,31 @@ CeLoginRc cli::createProductionHsfV2(int argc, char** argv)
 
             if (sScriptFileReadSuccess && CeLoginRc::Success == sRc)
             {
-                sRc = CeLogin::createCeLoginAcfV2Payload(sCreateHsfArgsV2,
-                                                         sJson, sHash);
+                sRc =
+                    CeLogin::createCeLoginAcfV2Payload(sCreateHsfArgsV2, sJson);
             }
+        }
+
+        // Pure ML-DSA signs the payload itself, so the whole ACF has to fit
+        // through the signing server. Fail here with the actual sizes rather
+        // than letting the signing request be rejected remotely, where the
+        // cause is not visible to the requester.
+        if (CeLoginRc::Success == sRc &&
+            CeLogin::SignatureAlgorithm_MlDsa87 ==
+                sCreateHsfArgsV1.mSignatureAlgorithm &&
+            sJson.length() >
+                (size_t)CeLogin::CeLogin_MaxMlDsaSigningPayloadSize)
+        {
+            cerr << "ERROR: ACF payload is " << sJson.length()
+                 << " bytes, over the "
+                 << (int)CeLogin::CeLogin_MaxMlDsaSigningPayloadSize
+                 << "-byte signing server limit for ML-DSA." << endl;
+            cerr << "       ML-DSA signs the payload itself, so the entire ACF "
+                    "must fit."
+                 << endl;
+            cerr << "       Reduce the machine count or the script size."
+                 << endl;
+            sRc = CeLoginRc::Failure;
         }
 
         if (CeLoginRc::Success == sRc)
@@ -427,8 +489,16 @@ CeLoginRc cli::createProductionHsfV2(int argc, char** argv)
             // Digest Output is not required
             if (!sArgs.mJsonDigestPath.empty())
             {
-                if (writeBinaryFile(sArgs.mJsonDigestPath,
-                                    (const uint8_t*)sHash.data(), sHash.size()))
+                vector<uint8_t> sHash;
+                if (CeLoginRc::Success !=
+                    CeLogin::createCeLoginAcfPayloadDigest(sJson, sHash))
+                {
+                    cout << "Error creating digest" << endl;
+                    sRc = CeLoginRc::Failure;
+                }
+                else if (writeBinaryFile(sArgs.mJsonDigestPath,
+                                         (const uint8_t*)sHash.data(),
+                                         sHash.size()))
                 {
                     cout << "Wrote: " << sArgs.mJsonDigestPath << endl;
                 }

@@ -74,7 +74,7 @@ struct option long_options[NOptOptions + 1] = {
     {0, 0, 0, 0}};
 
 string options_description[NOptOptions] = {
-    "<processor gen (P10,P11)>,<authority (dev,ce)>,<7-char serial number|UNSET>",
+    "<processor gen (P10,P11,P12)>,<authority (dev,ce)>,<7-char serial number|UNSET>",
     "ACF expiration date in the format: \"YYYY-MM-DD\"",
     "Path/file to write generated password into",
     "Comment to embed in ACF asn1. Written into the \"SourceFileName\" field",
@@ -246,7 +246,6 @@ CeLogin::CeLoginRc cli::createProductionHsf(int argc, char** argv)
     else if (sOperation == CreateJsonAndDigest)
     {
         string sJson;
-        vector<uint8_t> sHash;
 
         CeLogin::CeLoginCreateHsfArgsV1 sCreateHsfArgs;
 
@@ -285,8 +284,7 @@ CeLogin::CeLoginRc cli::createProductionHsf(int argc, char** argv)
             sCreateHsfArgs.mPasswordHashAlgorithm =
                 CeLogin::PasswordHash_Production;
 
-            sRc = CeLogin::createCeLoginAcfV1Payload(sCreateHsfArgs, sJson,
-                                                     sHash);
+            sRc = CeLogin::createCeLoginAcfV1Payload(sCreateHsfArgs, sJson);
         }
 
         if (CeLogin::CeLoginRc::Success == sRc)
@@ -305,8 +303,16 @@ CeLogin::CeLoginRc cli::createProductionHsf(int argc, char** argv)
             // Digest Output is not required
             if (!sArgs.mJsonDigestPath.empty())
             {
-                if (writeBinaryFile(sArgs.mJsonDigestPath,
-                                    (const uint8_t*)sHash.data(), sHash.size()))
+                vector<uint8_t> sHash;
+                if (CeLogin::CeLoginRc::Success !=
+                    CeLogin::createCeLoginAcfPayloadDigest(sJson, sHash))
+                {
+                    cout << "Error creating digest" << endl;
+                    sRc = CeLogin::CeLoginRc::Failure;
+                }
+                else if (writeBinaryFile(sArgs.mJsonDigestPath,
+                                         (const uint8_t*)sHash.data(),
+                                         sHash.size()))
                 {
                     cout << "Wrote: " << sArgs.mJsonDigestPath << endl;
                 }

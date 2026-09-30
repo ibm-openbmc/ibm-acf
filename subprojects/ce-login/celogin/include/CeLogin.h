@@ -1,9 +1,19 @@
 
+#include <openssl/opensslv.h>
 #include <stdint.h>
 #include <string.h>
 
 #ifndef _CELOGIN_H
 #define _CELOGIN_H
+
+// ML-DSA-87 (FIPS 204) support requires OpenSSL 3.5 or later. When building
+// against an older OpenSSL the ML-DSA code is compiled out and only the legacy
+// RSA/SHA-512 signature path is available; existing RSA functionality is
+// unaffected. Code guarded by CELOGIN_MLDSA_SUPPORTED must not be referenced
+// when this macro is undefined.
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+#define CELOGIN_MLDSA_SUPPORTED 1
+#endif
 
 namespace CeLogin
 {

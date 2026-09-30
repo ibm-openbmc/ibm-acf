@@ -52,14 +52,12 @@ struct CeLoginDecryptedHsfArgsV2
 CeLoginRc createCeLoginAcfV2(const CeLoginCreateHsfArgsV2& argsParm,
                              std::vector<uint8_t>& generatedAcfParm);
 
-CeLoginRc
-    createCeLoginAcfV2Payload(const CeLoginCreateHsfArgsV2& argsParm,
-                              std::string& generatedAcfParm,
-                              std::vector<uint8_t>& generatedPayloadHashParm);
+CeLoginRc createCeLoginAcfV2Payload(const CeLoginCreateHsfArgsV2& argsParm,
+                                    std::string& generatedAcfParm);
 
 CeLoginRc
     createCeLoginAcfV2Signature(const CeLoginCreateHsfArgsV2& argsParm,
-                                const std::vector<uint8_t>& jsonDigestParm,
+                                const std::string& jsonParm,
                                 std::vector<uint8_t>& generatedSignatureParm);
 
 CeLoginRc createCeLoginAcfV2Asn1(const CeLoginCreateHsfArgsV2& argsParm,

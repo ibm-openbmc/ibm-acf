@@ -292,6 +292,29 @@ bool cli::parseMachineFromString(const std::string& stringParm,
                 }
             }
         }
+        else if (0 == sProcStr.compare("P12"))
+        {
+            CeLogin::ServiceAuthority sAuth = CeLogin::ServiceAuth_None;
+            if (0 == sAuthStr.compare("dev"))
+            {
+                sAuth = CeLogin::ServiceAuth_Dev;
+            }
+            else if (0 == sAuthStr.compare("ce"))
+            {
+                sAuth = CeLogin::ServiceAuth_CE;
+            }
+
+            if (CeLogin::ServiceAuth_None != sAuth)
+            {
+                if (!sSerialStr.empty())
+                {
+                    machineParm.mAuth = sAuth;
+                    machineParm.mProc = cli::P12;
+                    machineParm.mSerialNumber = sSerialStr;
+                    sIsSuccess = true;
+                }
+            }
+        }
     }
     return sIsSuccess;
 }

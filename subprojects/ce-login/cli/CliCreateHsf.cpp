@@ -65,7 +65,7 @@ struct option create_long_options[NOptOptions + 1] = {
     {0, 0, 0, 0}};
 
 string create_options_description[NOptOptions] = {
-    "<processor gen (P10,P11)>,<authority (dev,ce)>,<7-char serial number|UNSET>",
+    "<processor gen (P10,P11,P12)>,<authority (dev,ce)>,<7-char serial number|UNSET>",
     "Password",
     "ExpirationDate - YYYY-MM-DD",
     "PrivateKeyFile",
@@ -245,6 +245,17 @@ CeLogin::CeLoginRc cli::createHsf(int argc, char** argv)
         else
         {
             cout << "Error reading private key file" << endl;
+            return sRc;
+        }
+
+        // The signature algorithm is determined by the supplied private key
+        // type (RSA -> sha512WithRSAEncryption, ML-DSA-87 -> id-ml-dsa-87).
+        if (!CeLogin::detectSignatureAlgorithm(
+                sKey, sCreateHsfArgs.mSignatureAlgorithm))
+        {
+            cout << "Error: Unsupported private key type. Expected RSA or "
+                    "ML-DSA-87."
+                 << endl;
             return sRc;
         }
 
