@@ -151,7 +151,7 @@ class TacfDbus
             }
 
             // Append the dbus method parameters.
-            method.append(static_cast<sdbusplus::message::object_path>(
+            method.append(static_cast<sdbusplus::object_path>(
                               "/xyz/openbmc_project/inventory/system/chassis/"
                               "motherboard"),
                           "UTIL", "F0", replayBytes);
@@ -183,7 +183,7 @@ class TacfDbus
     int unlockUser(const std::string& userName, bool state = false) const
     {
         // Target the appropriate user
-        sdbusplus::message::object_path userPath("/xyz/openbmc_project/user");
+        sdbusplus::object_path userPath("/xyz/openbmc_project/user");
         userPath /= userName;
         std::string propertyPath(userPath);
 
@@ -207,7 +207,7 @@ class TacfDbus
     int enableUser(const std::string& userName, bool state = true) const
     {
         // Target the appropriate user
-        sdbusplus::message::object_path userPath("/xyz/openbmc_project/user");
+        sdbusplus::object_path userPath("/xyz/openbmc_project/user");
         userPath /= userName;
         std::string propertyPath(userPath);
 
@@ -230,7 +230,7 @@ class TacfDbus
     int bypassMFAUser(const std::string& userName) const
     {
         // Target the appropriate user
-        sdbusplus::message::object_path userPath("/xyz/openbmc_project/user");
+        sdbusplus::object_path userPath("/xyz/openbmc_project/user");
         userPath /= userName;
         std::string propertyPath(userPath);
         std::string bypassType =
@@ -257,7 +257,7 @@ class TacfDbus
                       const std::string& userPrivilege) const
     {
         // Target the appropriate user
-        sdbusplus::message::object_path userPath("/xyz/openbmc_project/user");
+        sdbusplus::object_path userPath("/xyz/openbmc_project/user");
         userPath /= userName;
         std::string propertyPath(userPath);
 
